@@ -7,9 +7,11 @@
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f9fafb; color: #333; margin: 0; padding: 20px; }
     h1 { text-align: center; margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: auto; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: center; vertical-align: middle; }
     th { background: #f1f1f1; cursor: pointer; }
+    td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    td.expandable { white-space: normal; word-wrap: break-word; max-width: 300px; }
     tr.warning { background-color: #fff8dc; }
     tr.danger { background-color: #f8d7da; }
     tr.success { background-color: #d4edda; }
@@ -20,12 +22,14 @@
     .legend .warning { background-color: #fff8dc; }
     .legend .danger { background-color: #f8d7da; }
     #chartContainer { margin-top: 40px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 6px rgba(0,0,0,0.1); }
-    #tableContainer { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 6px rgba(0,0,0,0.1); }
+    #tableContainer { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 6px rgba(0,0,0,0.1); overflow-x: auto; }
     button { background-color: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
     button:hover { background-color: #1e40af; }
     input[type="text"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+    th.expandable, td.expandable { min-width: 200px; max-width: 400px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -97,13 +101,13 @@
       if (!rows.length){ container.innerHTML='<p style="text-align:center;color:#666">Henüz veri yok.</p>'; return; }
 
       let html = `<table><thead><tr>
-        <th onclick="sortTable('Malzeme Adı')">Malzeme Adı</th>
+        <th class="expandable" onclick="sortTable('Malzeme Adı')">Malzeme Adı</th>
         <th onclick="sortTable('Mevcut Stok')">Mevcut Stok</th>
         <th onclick="sortTable('Yıllık Tüketim')">Yıllık Tüketim</th>
         <th onclick="sortTable('İhale Miktarı')">İhale Miktarı</th>
         <th onclick="sortTable('Kaç Ay Yeter')">Kaç Ay Yeter</th>
         <th onclick="sortTable('İhale Sonrası Kaç Ay Yeter')">İhale Sonrası Kaç Ay Yeter</th>
-        <th>Açıklama</th>
+        <th class="expandable">Açıklama</th>
       </tr></thead><tbody>`;
 
       rows.forEach(r=>{
@@ -111,13 +115,13 @@
         if (r['Kaç Ay Yeter']<6) cls='danger';
         else if(r['Kaç Ay Yeter']<8) cls='warning';
         html+=`<tr class="${cls}">
-          <td>${r['Malzeme Adı']}</td>
+          <td class="expandable">${r['Malzeme Adı']}</td>
           <td>${r['Mevcut Stok'].toLocaleString('tr-TR')}</td>
           <td>${r['Yıllık Tüketim'].toLocaleString('tr-TR')}</td>
           <td>${r['İhale Miktarı'].toLocaleString('tr-TR')}</td>
           <td>${r['Kaç Ay Yeter'].toFixed(1).replace('.',',')}</td>
           <td>${r['İhale Sonrası Kaç Ay Yeter'].toFixed(1).replace('.',',')}</td>
-          <td>${r['Açıklama']}</td>
+          <td class="expandable">${r['Açıklama']}</td>
         </tr>`;
       });
       html+='</tbody></table>';
@@ -128,12 +132,21 @@
       const ctx=document.getElementById('chart').getContext('2d');
       const critical = rows.sort((a,b)=>a['Kaç Ay Yeter']-b['Kaç Ay Yeter']).slice(0,5);
       const labels = critical.map(r=>r['Malzeme Adı']);
-      const values = critical.map(r=>r['Kaç Ay Yeter']);
+      const values = critical.map(r=>r['Kaç Ay Yeter']*30); // gün olarak
       if(chartInstance) chartInstance.destroy();
       chartInstance = new Chart(ctx,{
         type:'bar',
-        data:{ labels, datasets:[{label:'Kalan Stok (Ay)', data:values, backgroundColor:['#ef4444','#f97316','#facc15','#22c55e','#3b82f6']}]},
-        options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+        data:{ labels, datasets:[{label:'Kalan Stok (Gün)', data:values, backgroundColor:['#ef4444','#f97316','#facc15','#22c55e','#3b82f6']}]},
+        options:{
+          indexAxis:'y', responsive:true, plugins:{
+            legend:{display:false},
+            datalabels:{
+              anchor:'end', align:'right', formatter: function(value){ return Math.round(value)+' gün'; }
+            }
+          },
+          scales:{x:{beginAtZero:true}}
+        },
+        plugins: [ChartDataLabels]
       });
     }
 
