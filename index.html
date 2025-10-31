@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Stok Görselleştirici</title>
+  <title>Stok Durumu</title>
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #FFFFFF; color: #333; margin: 0; padding: 20px; }
     h1 { text-align: center; margin-bottom: 20px; }
@@ -13,14 +13,18 @@
     td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     td.expandable { white-space: normal; word-wrap: break-word; max-width: 300px; }
     tr.warning { background-color: #fff8dc; }
-    tr.danger { background-color: #f8d7da; }
+    tr.danger { background-color: #fcdcdc; color: #000000;}
     tr.success { background-color: #FFFFFF; }
+    /* Tek numaralı (odd) satırlar için arka plan rengi */
+    tbody tr:nth-child(odd) {
+        background-color: #f3f4f6 !important; /* Çok açık gri bir renk */
+    }
     .controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
     .legend { text-align: center; margin-top: 10px; }
     .legend span { margin: 0 10px; padding: 5px 10px; border-radius: 4px; color: #000; }
     .legend .success { background-color: #FFFFFF; } 
     .legend .warning { background-color: #fff8dc; }
-    .legend .danger { background-color: #f8d7da; }
+    .legend .danger { background-color: #fcdcdc; color: #000000;}
     #chartContainer { margin-top: 40px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 6px rgba(0,0,0,0.1); }
     #tableContainer { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 6px rgba(0,0,0,0.1); overflow-x: auto; }
     button { background-color: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
@@ -30,6 +34,21 @@
     .pagination { text-align: center; margin-top: 10px; }
     .pagination button { margin: 0 3px; }
   
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin-top: 10px; 
+      table-layout: auto; 
+      border: 1px solid #333; /* İsteğe bağlı: Tablo dış sınırı */
+    }
+    
+    th, td { 
+      border: 1px solid #5599FF; /* Burası: Satır ve sütun çizgileri */
+      padding: 8px; 
+      text-align: center; 
+      vertical-align: middle; 
+    }
+    
     /* Sayfalama butonları stil */
     .pagination button {
       background-color: #2563eb;
@@ -58,12 +77,14 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
+
 <body>
   <h1>📊 ABONE İŞLERİ DAİRESİ BAŞKANLIKLARI AMBAR STOK DURUMU</h1>
   <div class="controls">
     <input type="file" id="csvFile" accept=".csv">
     <button onclick="loadCSV()">Yükle</button>
     <input type="text" id="searchInput" placeholder="Malzeme adına göre ara..." onkeyup="applyFilters()">
+    <button onclick="clearSearch()">Temizle</button>
     <select id="filterSelect" onchange="applyFilters()">
       <option value="hepsi">Tüm Durumlar</option>
       <option value="success">Stok Yeterli</option>
@@ -152,19 +173,19 @@
 
       // ----- Tablo HTML oluşturma -----
       let html = `<table><thead><tr>
-        <th class="expandable" onclick="sortTable('Malzeme Adı')">Malzeme Adı</th>
-        <th onclick="sortTable('Mevcut Stok')">Mevcut Stok</th>
-        <th onclick="sortTable('Yıllık Tüketim')">Yıllık Tüketim</th>
-        <th onclick="sortTable('İhale Miktarı')">İhale Miktarı</th>
-        <th onclick="sortTable('Kaç Ay Yeter')">Kaç Ay Yeter</th>
-        <th onclick="sortTable('İhale Sonrası Kaç Ay Yeter')">İhale Sonrası Kaç Ay Yeter</th>
+        <th class="expandable" onclick="sortTable('Malzeme Adı')">Malzeme Adı ↕</th>
+        <th onclick="sortTable('Mevcut Stok')">Mevcut Stok ↕</th>
+        <th onclick="sortTable('Yıllık Tüketim')">Yıllık Tüketim ↕</th>
+        <th onclick="sortTable('İhale Miktarı')">İhale Miktarı ↕</th>
+        <th onclick="sortTable('Kaç Ay Yeter')">Kaç Ay Yeter ↕</th>
+        <th onclick="sortTable('İhale Sonrası Kaç Ay Yeter')">İhale Sonrası Kaç Ay Yeter ↕</th>
         <th class="expandable">Açıklama</th>
       </tr></thead><tbody>`;
 
       pageRows.forEach(r => {
         let cls = 'success';
-        if (r['Kaç Ay Yeter'] < 6) cls = 'danger';
-        else if(r['Kaç Ay Yeter'] < 8) cls = 'warning';
+        if (r['İhale Sonrası Kaç Ay Yeter'] < 6) cls = 'danger';
+        else if(r['İhale Sonrası Kaç Ay Yeter'] < 8) cls = 'warning';
 
         html += `<tr class="${cls}">
           <td class="expandable">${r['Malzeme Adı']}</td>
@@ -213,9 +234,9 @@
 
     function renderChart(rows){
       const ctx=document.getElementById('chart').getContext('2d');
-      const critical = rows.sort((a,b)=>a['Kaç Ay Yeter']-b['Kaç Ay Yeter']).slice(0,5);
+      const critical = rows.sort((a,b)=>a['İhale Sonrası Kaç Ay Yeter']-b['İhale Sonrası Kaç Ay Yeter']).slice(0,5);
       const labels = critical.map(r=>r['Malzeme Adı']);
-      const values = critical.map(r=>r['Kaç Ay Yeter']*30); // gün olarak
+      const values = critical.map(r=>r['İhale Sonrası Kaç Ay Yeter']*30); // gün olarak
       if(chartInstance) chartInstance.destroy();
       chartInstance = new Chart(ctx,{
         type:'bar',
@@ -247,14 +268,22 @@
       let filtered=allRows.filter(r=>r['Malzeme Adı'].toLowerCase().includes(search));
       if(filter!=='hepsi'){
         filtered=filtered.filter(r=>{
-          const ay=r['Kaç Ay Yeter'];
+          const ay=r['İhale Sonrası Kaç Ay Yeter'];
           if(filter==='success') return ay>=8;
-          if(filter==='warning') return ay>=6 && ay<8;
-          if(filter==='danger') return ay<6;
+          if(filter==='warning') return ay>6 && ay<8;
+          if(filter==='danger') return ay<=6;
         });
       }
       renderTable(filtered);
       renderChart(filtered);
+    }
+
+    function clearSearch() {
+        // Arama kutusunu temizle
+        document.getElementById('searchInput').value = ''; 
+        
+        // Filtreleri tekrar uygula (bu, temizlenmiş arama kutusuyla tabloyu günceller)
+        applyFilters(); 
     }
 
     function exportPDF(){ window.print(); }
