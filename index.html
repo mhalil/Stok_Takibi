@@ -15,6 +15,9 @@
     tr.warning { background-color: #fff8dc; }
     tr.danger { background-color: #fcdcdc; color: #000000;}
     tr.success { background-color: #FFFFFF; }
+	tbody tr.success:nth-child(odd) {
+    background-color: #f3f4f6;
+}
     .controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
     .legend { text-align: center; margin-top: 10px; }
     .legend span { margin: 0 10px; padding: 5px 10px; border-radius: 4px; color: #000; }
@@ -89,10 +92,10 @@
     </select>
     <select id="rowsPerPage" onchange="applyFilters()">
       <option value="5">5 Satır / Sayfa</option>
-      <option value="10" selected>10 Satır / Sayfa</option>
+      <option value="10">10 Satır / Sayfa</option>
       <option value="20">20 Satır / Sayfa</option>
       <option value="50">50 Satır / Sayfa</option>
-      <option value="0">Tümü</option>
+      <option value="0" selected>Tümü</option>
 
     </select>
     <button onclick="exportPDF()">PDF Olarak Dışa Aktar</button>
@@ -266,8 +269,8 @@
         filtered=filtered.filter(r=>{
           const ay=r['İhale Sonrası Kaç Ay Yeter'];
           if(filter==='success') return ay>=8;
-          if(filter==='warning') return ay>6 && ay<8;
-          if(filter==='danger') return ay<=6;
+          if(filter==='warning') return ay>=6 && ay<8;
+          if(filter==='danger') return ay<6;
         });
       }
       renderTable(filtered);
