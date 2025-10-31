@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stok Görselleştirici</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f9fafb; color: #333; margin: 0; padding: 20px; }
+    h1 { text-align: center; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; vertical-align: middle; }
+    th { background: #f1f1f1; cursor: pointer; }
+    tr.warning { background-color: #fff8dc; }
+    tr.danger { background-color: #f8d7da; }
+    tr.success { background-color: #d4edda; }
+    .controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .legend { text-align: center; margin-top: 10px; }
+    .legend span { margin: 0 10px; padding: 5px 10px; border-radius: 4px; color: #000; }
+    .legend .success { background-color: #d4edda; }
+    .legend .warning { background-color: #fff8dc; }
+    .legend .danger { background-color: #f8d7da; }
+    #chartContainer { margin-top: 40px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 6px rgba(0,0,0,0.1); }
+    #tableContainer { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 6px rgba(0,0,0,0.1); }
+    button { background-color: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
+    button:hover { background-color: #1e40af; }
+    input[type="text"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+  <h1>📊 CSV Tabanlı Stok Görselleştirici</h1>
+  <div class="controls">
+    <input type="file" id="csvFile" accept=".csv">
+    <button onclick="loadCSV()">Yükle</button>
+    <input type="text" id="searchInput" placeholder="Malzeme adına göre ara..." onkeyup="applyFilters()">
+    <select id="filterSelect" onchange="applyFilters()">
+      <option value="hepsi">Tüm Durumlar</option>
+      <option value="success">Stok Yeterli</option>
+      <option value="warning">Stok Azalıyor</option>
+      <option value="danger">Kritik Seviye</option>
+    </select>
+    <button onclick="exportPDF()">PDF Olarak Dışa Aktar</button>
+  </div>
+
+  <div id="chartContainer">
+    <canvas id="chart" height="34"></canvas>
+  </div>
+
+  <div class="legend">
+    <span class="success">Stok Yeterli (&gt; 8 Ay)</span>
+    <span class="warning">Stok Azalıyor (6 - 8 Ay)</span>
+    <span class="danger">Kritik Seviye (&lt; 6 Ay)</span>
+  </div>
+
+  <div id="tableContainer"></div>
+
+  <script>
+    let allRows = [];
+    let chartInstance = null;
+    let currentSort = { column: null, asc: true };
+
+    function loadCSV() {
+      const fileInput = document.getElementById('csvFile');
+      const file = fileInput.files[0];
+      if (!file) { alert('Lütfen bir CSV dosyası seçin.'); return; }
+      const reader = new FileReader();
+      reader.onload = e => parseCSV(e.target.result);
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function parseCSV(csvText) {
+      csvText = csvText.replace(/\uFEFF/g, '').trim();
+      const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+      allRows = parsed.data.map(r => {
+        const yillik = parseFloat((r['Yıllık Tüketim']||'0').replace(',','.'));
+        const stok = parseFloat((r['Mevcut Stok']||'0').replace(',','.'));
+        const ihale = parseFloat((r['İhale Miktarı']||'0').replace(',','.'));
+        const aylik = yillik/12;
+        return {
+          'Malzeme Adı': (r['Malzeme Adı']||'').trim(),
+          'Mevcut Stok': stok,
+          'Yıllık Tüketim': yillik,
+          'İhale Miktarı': ihale,
+          'Kaç Ay Yeter': aylik? stok/aylik:0,
+          'İhale Sonrası Kaç Ay Yeter': aylik? (stok+ihale)/aylik:0,
+          'Açıklama': (r['Açıklama']||'').trim()
+        };
+      }).filter(r=>r['Malzeme Adı']);
+
+      renderTable(allRows);
+      renderChart(allRows);
+    }
+
+    function renderTable(rows) {
+      const container = document.getElementById('tableContainer');
+      if (!rows.length){ container.innerHTML='<p style="text-align:center;color:#666">Henüz veri yok.</p>'; return; }
+
+      let html = `<table><thead><tr>
+        <th onclick="sortTable('Malzeme Adı')">Malzeme Adı</th>
+        <th onclick="sortTable('Mevcut Stok')">Mevcut Stok</th>
+        <th onclick="sortTable('Yıllık Tüketim')">Yıllık Tüketim</th>
+        <th onclick="sortTable('İhale Miktarı')">İhale Miktarı</th>
+        <th onclick="sortTable('Kaç Ay Yeter')">Kaç Ay Yeter</th>
+        <th onclick="sortTable('İhale Sonrası Kaç Ay Yeter')">İhale Sonrası Kaç Ay Yeter</th>
+        <th>Açıklama</th>
+      </tr></thead><tbody>`;
+
+      rows.forEach(r=>{
+        let cls='success';
+        if (r['Kaç Ay Yeter']<6) cls='danger';
+        else if(r['Kaç Ay Yeter']<8) cls='warning';
+        html+=`<tr class="${cls}">
+          <td>${r['Malzeme Adı']}</td>
+          <td>${r['Mevcut Stok'].toLocaleString('tr-TR')}</td>
+          <td>${r['Yıllık Tüketim'].toLocaleString('tr-TR')}</td>
+          <td>${r['İhale Miktarı'].toLocaleString('tr-TR')}</td>
+          <td>${r['Kaç Ay Yeter'].toFixed(1).replace('.',',')}</td>
+          <td>${r['İhale Sonrası Kaç Ay Yeter'].toFixed(1).replace('.',',')}</td>
+          <td>${r['Açıklama']}</td>
+        </tr>`;
+      });
+      html+='</tbody></table>';
+      container.innerHTML=html;
+    }
+
+    function renderChart(rows){
+      const ctx=document.getElementById('chart').getContext('2d');
+      const critical = rows.sort((a,b)=>a['Kaç Ay Yeter']-b['Kaç Ay Yeter']).slice(0,5);
+      const labels = critical.map(r=>r['Malzeme Adı']);
+      const values = critical.map(r=>r['Kaç Ay Yeter']);
+      if(chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(ctx,{
+        type:'bar',
+        data:{ labels, datasets:[{label:'Kalan Stok (Ay)', data:values, backgroundColor:['#ef4444','#f97316','#facc15','#22c55e','#3b82f6']}]},
+        options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+      });
+    }
+
+    function sortTable(col){
+      const asc = currentSort.column===col?!currentSort.asc:true;
+      currentSort={column:col,asc};
+      allRows.sort((a,b)=>{
+        const valA=a[col]||0,valB=b[col]||0;
+        return typeof valA==='string'? (asc? valA.localeCompare(valB): valB.localeCompare(valA)) : (asc? valA-valB: valB-valA);
+      });
+      renderTable(allRows);
+    }
+
+    function applyFilters(){
+      const search=document.getElementById('searchInput').value.toLowerCase();
+      const filter=document.getElementById('filterSelect').value;
+      let filtered=allRows.filter(r=>r['Malzeme Adı'].toLowerCase().includes(search));
+      if(filter!=='hepsi'){
+        filtered=filtered.filter(r=>{
+          const ay=r['Kaç Ay Yeter'];
+          if(filter==='success') return ay>=8;
+          if(filter==='warning') return ay>=6 && ay<8;
+          if(filter==='danger') return ay<6;
+        });
+      }
+      renderTable(filtered);
+      renderChart(filtered);
+    }
+
+    function exportPDF(){ window.print(); }
+  </script>
+</body>
+</html>
+
