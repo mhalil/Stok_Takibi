@@ -5,35 +5,61 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Stok Görselleştirici</title>
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f9fafb; color: #333; margin: 0; padding: 20px; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #FFFFFF; color: #333; margin: 0; padding: 20px; }
     h1 { text-align: center; margin-bottom: 20px; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: auto; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: center; vertical-align: middle; }
-    th { background: #f1f1f1; cursor: pointer; }
+    th { background: #2563eb; color: white; cursor: pointer; }
     td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     td.expandable { white-space: normal; word-wrap: break-word; max-width: 300px; }
     tr.warning { background-color: #fff8dc; }
     tr.danger { background-color: #f8d7da; }
-    tr.success { background-color: #d4edda; }
+    tr.success { background-color: #FFFFFF; }
     .controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
     .legend { text-align: center; margin-top: 10px; }
     .legend span { margin: 0 10px; padding: 5px 10px; border-radius: 4px; color: #000; }
-    .legend .success { background-color: #d4edda; }
+    .legend .success { background-color: #FFFFFF; } 
     .legend .warning { background-color: #fff8dc; }
     .legend .danger { background-color: #f8d7da; }
     #chartContainer { margin-top: 40px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 6px rgba(0,0,0,0.1); }
     #tableContainer { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 6px rgba(0,0,0,0.1); overflow-x: auto; }
     button { background-color: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; }
     button:hover { background-color: #1e40af; }
-    input[type="text"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+    input[type="text"], select { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
     th.expandable, td.expandable { min-width: 200px; max-width: 400px; }
-  </style>
+    .pagination { text-align: center; margin-top: 10px; }
+    .pagination button { margin: 0 3px; }
+  
+    /* Sayfalama butonları stil */
+    .pagination button {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      margin: 2px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9em;
+    }
+    .pagination button:hover {
+      background-color: #1e40af;
+    }
+    .pagination button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    .pagination button.active {
+      font-weight: bold;
+      background-color: #1e40af;
+    }
+</style>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
-  <h1>📊 CSV Tabanlı Stok Görselleştirici</h1>
+  <h1>📊 ABONE İŞLERİ DAİRESİ BAŞKANLIKLARI AMBAR STOK DURUMU</h1>
   <div class="controls">
     <input type="file" id="csvFile" accept=".csv">
     <button onclick="loadCSV()">Yükle</button>
@@ -43,6 +69,14 @@
       <option value="success">Stok Yeterli</option>
       <option value="warning">Stok Azalıyor</option>
       <option value="danger">Kritik Seviye</option>
+    </select>
+    <select id="rowsPerPage" onchange="applyFilters()">
+      <option value="5">5 Satır / Sayfa</option>
+      <option value="10" selected>10 Satır / Sayfa</option>
+      <option value="20">20 Satır / Sayfa</option>
+      <option value="50">50 Satır / Sayfa</option>
+      <option value="0">Tümü</option>
+
     </select>
     <button onclick="exportPDF()">PDF Olarak Dışa Aktar</button>
   </div>
@@ -58,11 +92,13 @@
   </div>
 
   <div id="tableContainer"></div>
+  <div class="pagination" id="pagination"></div>
 
   <script>
     let allRows = [];
     let chartInstance = null;
     let currentSort = { column: null, asc: true };
+    let currentPage = 1;
 
     function loadCSV() {
       const fileInput = document.getElementById('csvFile');
@@ -92,14 +128,29 @@
         };
       }).filter(r=>r['Malzeme Adı']);
 
-      renderTable(allRows);
-      renderChart(allRows);
+      currentPage = 1;
+      applyFilters();
     }
 
     function renderTable(rows) {
       const container = document.getElementById('tableContainer');
-      if (!rows.length){ container.innerHTML='<p style="text-align:center;color:#666">Henüz veri yok.</p>'; return; }
+      if (!rows.length){
+        container.innerHTML = '<p style="text-align:center;color:#666">Henüz veri yok.</p>';
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
 
+      // ---- Satır sayısı kontrolü ----
+      let rowsPerPage = parseInt(document.getElementById('rowsPerPage').value);
+      if (rowsPerPage === 0) rowsPerPage = rows.length; // 'Tümü' seçeneği için
+
+      const totalPages = Math.ceil(rows.length / rowsPerPage);
+      if(currentPage > totalPages) currentPage = totalPages; // mevcut sayfa toplam sayfayı geçmesin
+      const start = (currentPage - 1) * rowsPerPage;
+      const end = start + rowsPerPage;
+      const pageRows = rows.slice(start, end);
+
+      // ----- Tablo HTML oluşturma -----
       let html = `<table><thead><tr>
         <th class="expandable" onclick="sortTable('Malzeme Adı')">Malzeme Adı</th>
         <th onclick="sortTable('Mevcut Stok')">Mevcut Stok</th>
@@ -110,11 +161,12 @@
         <th class="expandable">Açıklama</th>
       </tr></thead><tbody>`;
 
-      rows.forEach(r=>{
-        let cls='success';
-        if (r['Kaç Ay Yeter']<6) cls='danger';
-        else if(r['Kaç Ay Yeter']<8) cls='warning';
-        html+=`<tr class="${cls}">
+      pageRows.forEach(r => {
+        let cls = 'success';
+        if (r['Kaç Ay Yeter'] < 6) cls = 'danger';
+        else if(r['Kaç Ay Yeter'] < 8) cls = 'warning';
+
+        html += `<tr class="${cls}">
           <td class="expandable">${r['Malzeme Adı']}</td>
           <td>${r['Mevcut Stok'].toLocaleString('tr-TR')}</td>
           <td>${r['Yıllık Tüketim'].toLocaleString('tr-TR')}</td>
@@ -124,8 +176,39 @@
           <td class="expandable">${r['Açıklama']}</td>
         </tr>`;
       });
-      html+='</tbody></table>';
-      container.innerHTML=html;
+
+      html += '</tbody></table>';
+      container.innerHTML = html;
+
+      // ---- Tümü seçilmişse sayfalama gizle ----
+      if (parseInt(document.getElementById('rowsPerPage').value) === 0) {
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+
+      // ---- Sayfalama butonları ----
+      let paginationHtml = '';
+
+      // İlk ve Önceki butonları
+      paginationHtml += `<button onclick="goPage(1)" ${currentPage === 1 ? 'disabled' : ''}>İlk</button>`;
+      paginationHtml += `<button onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Önceki</button>`;
+
+      // Sayfa numaraları
+      for (let i = 1; i <= totalPages; i++) {
+        paginationHtml += `<button onclick="goPage(${i})" class="${i === currentPage ? 'active' : ''}">${i}</button>`;
+      }
+
+      // Sonraki ve Son butonları
+      paginationHtml += `<button onclick="goPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Sonraki</button>`;
+      paginationHtml += `<button onclick="goPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>Son</button>`;
+
+      document.getElementById('pagination').innerHTML = '<div class="pagination">' + paginationHtml + '</div>';
+    }
+
+
+    function goPage(page){ 
+      currentPage=page; 
+      applyFilters(); 
     }
 
     function renderChart(rows){
@@ -140,9 +223,7 @@
         options:{
           indexAxis:'y', responsive:true, plugins:{
             legend:{display:false},
-            datalabels:{
-              anchor:'end', align:'right', formatter: function(value){ return Math.round(value)+' gün'; }
-            }
+            datalabels:{ anchor:'end', align:'right', formatter: value=>Math.round(value)+' gün' }
           },
           scales:{x:{beginAtZero:true}}
         },
@@ -157,7 +238,7 @@
         const valA=a[col]||0,valB=b[col]||0;
         return typeof valA==='string'? (asc? valA.localeCompare(valB): valB.localeCompare(valA)) : (asc? valA-valB: valB-valA);
       });
-      renderTable(allRows);
+      applyFilters();
     }
 
     function applyFilters(){
@@ -180,4 +261,3 @@
   </script>
 </body>
 </html>
-
