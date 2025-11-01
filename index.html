@@ -34,30 +34,37 @@
         overflow-x: auto;
     }
     
-    /* Gerekli olan özel CSS: Satır renklendirme sınıfları */
-    .status-success { background-color: transparent; } 
-    .status-warning { background-color: #fff8dc !important; } 
-    .status-danger { background-color: #f8d7da !important; }  
+    /* YENİ CSS: Tüm çizgileri kaldır ve satır aralarına boşluk bırak */
+    #tableContainer table {
+        border-collapse: separate;
+        border-spacing: 0 0.4rem; /* Yatay boşluk 0, Dikey boşluk 0.4rem (ince boşluk) */
+    }
     
+    /* ---------------------------------------------------------------- */
+    /* RENKLENDİRME KURALLARI */
+    /* ---------------------------------------------------------------- */
+
     /* Özel Zebra Şerit kuralı (tek numaralı satırlara) */
     tbody tr:nth-child(odd) {
-        background-color: #f3f4f6; 
+        background-color: #f3f4f6 !important; 
     }
+    
+    /* Kritik Durum kuralları (ID ile en yüksek özgüllük verildi) */
+    #tableContainer tr.status-warning { background-color: #fff8dc !important; } 
+    #tableContainer tr.status-danger { background-color: #f8d7da !important; }  
     
     /* YAZDIRMA (PDF) AYARLARI */
     @media print {
-        /* Grafikler tam genişlikte olacağı için kenar boşluğunu kaldırıyoruz */
+        /* Ekrandaki tüm görünüm ayarlarının (boşluklar, renkler) korunması için */
+        /* Satır boşluğunu ve kenarlıkları sıfırlayan kurallar kaldırıldı. */
         .mb-6 { margin-bottom: 0 !important; } 
         #chartsContainer { padding: 0 !important; }
-        
-        /* Kontrol, açıklama ve sayfalama ögelerini gizle */
         .controls, .legend, .pagination { 
-            display: none !important;
+            display: none !important; /* Kontrol elemanları, grafikler ve sayfalama gizlenir. */
         }
         h1 { margin-top: 0; }
+        /* Yazdırmada gölge kaldırılır, boşluk (padding) sıfırlanır */
         #tableContainer { box-shadow: none; padding: 0; }
-        /* Tablo çizgilerini açık mavi yap */
-        table, th, td { border-color: #60a5fa !important; } 
     }
     
   </style>
@@ -68,7 +75,7 @@
 </head>
 
 <body class="font-sans bg-gray-100 text-gray-800 p-5">
-  <h1 class="text-3xl font-bold text-center mb-1">📊 ABONE İŞLERİ DAİRESİ BAŞKANLIKLARI AMBAR STOK DURUMU</h1>
+  <h1 class="text-3xl font-bold text-center mb-1">📊 ABONE İŞLERİ DAİRESİ BAŞKANLIKLARI AMBAR STOK DURUMU 🗠</h1>
   
   <input type="text" id="reportInfo" 
          placeholder="Rapor tarihini, versiyonunu veya ek notları buraya girin..." 
@@ -119,13 +126,13 @@
             class="py-1 px-3 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-300 hover:shadow-md transition duration-150">Stok Yeterli (> 8 Ay)</button>
 
     <button onclick="setFilterAndApply('warning')" 
-            class="py-1 px-3 rounded-lg bg-status-warning border border-gray-300 hover:shadow-md transition duration-150">Stok Azalıyor (6 - 8 Ay)</button>
+            class="py-1 px-3 rounded-lg bg-status-warning hover:bg-yellow-200 border border-gray-300 hover:shadow-md transition duration-150">Stok Azalıyor (6 - 8 Ay)</button>
 
     <button onclick="setFilterAndApply('danger')" 
-            class="py-1 px-3 rounded-lg bg-status-danger border border-gray-300 hover:shadow-md transition duration-150">Kritik Seviye (< 6 Ay)</button>
+            class="py-1 px-3 rounded-lg bg-status-danger hover:bg-red-300 border border-gray-300 hover:shadow-md transition duration-150">Kritik Seviye (< 6 Ay)</button>
             
     <button onclick="setFilterAndApply('hepsi')" 
-            class="py-1 px-3 rounded-lg bg-gray-300 hover:bg-gray-400 border border-gray-400 hover:shadow-md transition duration-150">Tüm Durumlar</button>
+            class="py-1 px-3 rounded-lg bg-blue-200 hover:bg-blue-400 border border-blue-400 hover:shadow-md transition duration-150">Tüm Durumlar</button>
   </div>
 
   <div id="tableContainer" class="bg-white p-4 rounded-lg shadow-md table-responsive overflow-hidden"></div>
@@ -198,21 +205,20 @@
       const end = start + rowsPerPage;
       const pageRows = rows.slice(start, end);
 
-      // Tablo HTML oluşturma
-      // DİKKAT: 'border border-blue-400' sınıfları kaldırıldı.
-      let html = `<table class="min-w-full divide-y divide-blue-400">
+      // Tablo HTML oluşturma - Tüm divide/border sınıfları kaldırıldı
+      let html = `<table class="min-w-full">
         <thead>
           <tr>
-            <th class="px-6 py-3 bg-custom-blue text-left text-sm font-bold text-white uppercase tracking-wider cursor-pointer border-r border-blue-400 rounded-tl-lg" onclick="sortTable('Malzeme Adı')">Malzeme Adı ↕</th>
-            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer border-r border-blue-400" onclick="sortTable('Mevcut Stok')">Mevcut Stok ↕</th>
-            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer border-r border-blue-400" onclick="sortTable('Yıllık Tüketim')">Yıllık Tüketim ↕</th>
-            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer border-r border-blue-400" onclick="sortTable('İhale Miktarı')">İhale Miktarı ↕</th>
-            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer border-r border-blue-400" onclick="sortTable('Kaç Ay Yeter')">Kaç Ay Yeter ↕</th>
-            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer border-r border-blue-400" onclick="sortTable('İhale Sonrası Kaç Ay Yeter')">İhale Sonrası Kaç Ay Yeter ↕</th>
-            <th class="px-6 py-3 bg-custom-blue text-left text-sm font-bold text-white uppercase tracking-wider cursor-pointer rounded-tr-lg" onclick="sortTable('Açıklama')">Açıklama ↕</th>
+            <th class="px-6 py-3 bg-custom-blue text-left text-sm font-bold text-white uppercase tracking-wider cursor-pointer rounded-tl-2xl" onclick="sortTable('Malzeme Adı')">Malzeme Adı ↕</th>
+            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer" onclick="sortTable('Mevcut Stok')">Mevcut Stok ↕</th>
+            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer" onclick="sortTable('Yıllık Tüketim')">Yıllık Tüketim ↕</th>
+            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer" onclick="sortTable('İhale Miktarı')">Ambara Teslim Edilecek Miktar ↕</th>
+            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer" onclick="sortTable('Kaç Ay Yeter')">Mevcut Stok Kaç Ay Yeter ↕</th>
+            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer" onclick="sortTable('İhale Sonrası Kaç Ay Yeter')">Teslim Sonrası Stok Kaç Ay Yeter ↕</th>
+            <th class="px-6 py-3 bg-custom-blue text-left text-sm font-bold text-white uppercase tracking-wider cursor-pointer rounded-tr-2xl" onclick="sortTable('Açıklama')">Açıklama ↕</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-blue-400">`;
+        <tbody>`; // tbody'den divide-y kaldırıldı
 
       // pageRows'a index eklendi
       pageRows.forEach((r, index) => {
@@ -224,13 +230,14 @@
         // Bu satırın son satır olup olmadığı kontrolü
         const isLastRow = index === pageRows.length - 1; 
 
-        html += `<tr class="${cls} border-b border-blue-400">
-          <td class="px-6 py-4 whitespace-normal text-sm text-gray-900 border-r border-blue-400 ${isLastRow ? 'rounded-bl-lg' : ''}">${r['Malzeme Adı']}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center border-r border-blue-400">${r['Mevcut Stok'].toLocaleString('tr-TR')}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center border-r border-blue-400">${r['Yıllık Tüketim'].toLocaleString('tr-TR')}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center border-r border-blue-400">${r['İhale Miktarı'].toLocaleString('tr-TR')}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center border-r border-blue-400">${r['Kaç Ay Yeter'].toFixed(1).replace('.',',')}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center border-r border-blue-400">${r['İhale Sonrası Kaç Ay Yeter'].toFixed(1).replace('.',',')}</td>
+        // Satır kenarlığı (border-b) kaldırıldı
+        html += `<tr class="${cls}"> 
+          <td class="px-6 py-4 whitespace-normal text-sm text-gray-900 ${isLastRow ? 'rounded-bl-lg' : ''}">${r['Malzeme Adı']}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">${r['Mevcut Stok'].toLocaleString('tr-TR')}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">${r['Yıllık Tüketim'].toLocaleString('tr-TR')}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">${r['İhale Miktarı'].toLocaleString('tr-TR')}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">${r['Kaç Ay Yeter'].toFixed(1).replace('.',',')}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">${r['İhale Sonrası Kaç Ay Yeter'].toFixed(1).replace('.',',')}</td>
           <td class="px-6 py-4 whitespace-normal text-sm text-gray-900 text-left ${isLastRow ? 'rounded-br-lg' : ''}">${r['Açıklama']}</td>
         </tr>`;
       });
@@ -353,7 +360,7 @@
             legend:{display:false},
             title: {
               display: true,
-              text: 'Kritik Seviyedeki İlk 5 Malzeme (İhale Sonrası Yeterlilik)', 
+              text: 'Kritik Seviyedeki İlk 5 Malzeme (Teslim Sonrası Yeterlilik)', 
               font: { size: 16, weight: 'bold' },
               color: '#333333' 
             },
