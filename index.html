@@ -57,8 +57,8 @@
         @media print {
             .mb-6 { margin-bottom: 0 !important; } 
             #chartsContainer { padding: 0 !important; }
-            .controls, .legend, .pagination, #columnSettingsContainer { 
-                display: none !important; /* Kontrol elemanları, ayar menüsü, efsane ve sayfalama gizlenir. */
+            .controls, .legend, #settingsCanvas { 
+                display: none !important; /* Kontrol elemanları, efsane ve ayarlar gizlenir. */
             }
             h1 { margin-top: 0; }
             #tableContainer { box-shadow: none; padding: 0; }
@@ -85,7 +85,7 @@
                         text-lg font-bold text-gray-900 bg-transparent"
             value="">
     
-    <div class="flex flex-wrap justify-center items-center gap-4 mb-6 p-4 bg-white rounded-lg shadow-md controls">
+    <div class="flex flex-wrap justify-center items-center gap-4 mb-6 p-4 bg-white rounded-2xl shadow-md controls">
         <input type="file" id="csvFile" accept=".csv" class="p-2 border border-gray-300 rounded-lg">
         <button onclick="loadCSV()" class="bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150">Yükle</button>
         
@@ -94,53 +94,67 @@
             <button onclick="clearSearch()" class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-4 rounded-lg shadow-md transition duration-150">Temizle</button>
         </div>
         
-        <select id="filterSelect" onchange="applyFilters()" class="p-2 border border-gray-300 rounded-lg">
-            <option value="hepsi">Tüm Durumlar</option>
-            <option value="success">Stok Yeterli</option>
-            <option value="warning">Stok Azalıyor</option>
-            <option value="danger">Kritik Seviye</option>
-        </select>
-
-        <div class="flex gap-2 border border-gray-300 rounded-lg p-2 bg-gray-50">
-            <div class="flex items-center gap-1">
-                <label for="criticalThreshold" class="text-sm font-medium text-gray-700">Kritik Eşik (Ay):</label>
-                <input type="number" id="criticalThreshold" value="6" min="1" onchange="updateThresholds()" class="w-12 p-1 border border-red-300 rounded text-center text-sm">
-            </div>
-            <div class="flex items-center gap-1">
-                <label for="warningThreshold" class="text-sm font-medium text-gray-700">Uyarı Eşiği (Ay):</label>
-                <input type="number" id="warningThreshold" value="8" min="1" onchange="updateThresholds()" class="w-12 p-1 border border-yellow-300 rounded text-center text-sm">
-            </div>
-        </div>
-        
-        <select id="rowsPerPage" onchange="applyFilters()" class="p-2 border border-gray-300 rounded-lg">
-            <option value="5">5 Satır / Sayfa</option>
-            <option value="10">10 Satır / Sayfa</option>
-            <option value="20">20 Satır / Sayfa</option>
-            <option value="50">50 Satır / Sayfa</option>
-            <option value="0" selected>Tümü</option>
-        </select>
-        
-        <div class="relative inline-block text-left" id="columnSettingsContainer">
-            <button onclick="toggleColumnSettings()" class="bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150 flex items-center">
-                ✓ Sütun Ayarları
-            </button>
-
-            <div id="columnDropdown" class="dropdown-menu origin-top-right absolute right-0 mt-2 w-64 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden p-2">
-                <p class="text-sm font-bold text-gray-700 mb-2 border-b pb-1">Gösterilecek Sütunları Seçin:</p>
-                <div id="columnCheckboxes" class="space-y-1">
-                    </div>
-            </div>
-        </div>
-        
         <button onclick="exportPDF()" class="bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150">PDF Olarak Dışa Aktar</button>
     </div>
 
+    <div id="settingsCanvas" class="mb-6 p-4 bg-white rounded-2xl shadow-md">
+        <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">⚙️ Rapor Ayarları</h3>
+        
+        <div class="flex flex-wrap justify-around items-start gap-6">
+            
+            <div class="border border-gray-300 rounded-2xl p-3 bg-gray-50 flex-1 min-w-[250px]">
+                <p class="font-semibold text-gray-700 mb-2">Kritik Stok Eşikleri (Ay)</p>
+                <div class="flex gap-4">
+                    <div class="flex items-center gap-1">
+                        <label for="criticalThreshold" class="text-sm font-medium text-gray-700">Kritik (<):</label>
+                        <input type="number" id="criticalThreshold" value="6" min="1" onchange="updateThresholds()" class="w-12 p-1 border border-red-300 rounded text-center text-sm">
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <label for="warningThreshold" class="text-sm font-medium text-gray-700">Uyarı (<):</label>
+                        <input type="number" id="warningThreshold" value="8" min="1" onchange="updateThresholds()" class="w-12 p-1 border border-yellow-300 rounded text-center text-sm">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border border-gray-300 rounded-2xl p-3 bg-gray-50 flex-1 min-w-[350px]">
+                <label class="font-semibold text-gray-700 block mb-2">Satır Renklendirme Ölçütü:</label>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center">
+                        <input type="radio" id="colorBasisAfterTender" name="rowColorBasis" value="ihaleSonrasi" 
+                               onchange="setRowColorBasis(this.value)" checked 
+                               class="h-4 w-4 text-custom-blue border-gray-300 focus:ring-custom-blue">
+                        <label for="colorBasisAfterTender" class="ml-1 text-sm text-gray-700">İhale Sonrası Durum</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="radio" id="colorBasisCurrent" name="rowColorBasis" value="mevcutStok" 
+                               onchange="setRowColorBasis(this.value)"
+                               class="h-4 w-4 text-custom-blue border-gray-300 focus:ring-custom-blue">
+                        <label for="colorBasisCurrent" class="ml-1 text-sm text-gray-700">Mevcut Stok Durumu</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="relative inline-block text-left border border-gray-300 rounded-2xl p-3 bg-gray-50 flex-1 min-w-[200px]">
+                <button onclick="toggleColumnSettings()" class="w-full bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150 flex items-center justify-center">
+                    ✓ Sütun Ayarlarını Göster/Gizle
+                </button>
+
+                <div id="columnDropdown" class="dropdown-menu origin-top-right absolute left-1/2 transform -translate-x-1/2 mt-2 w-64 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden p-2">
+                    <p class="text-sm font-bold text-gray-700 mb-2 border-b pb-1">Gösterilecek Sütunları Seçin:</p>
+                    <div id="columnCheckboxes" class="space-y-1">
+                        </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    
     <div class="mb-6">
         <div id="chartsContainer" class="flex gap-4">
-            <div id="chartCurrentContainer" class="bg-white p-4 rounded-lg shadow-md flex-1">
+            <div id="chartCurrentContainer" class="bg-white p-4 rounded-2xl shadow-md flex-1">
                 <canvas id="chartCurrent"></canvas>
             </div>
-            <div id="chartAfterTenderContainer" class="bg-white p-4 rounded-lg shadow-md flex-1">
+            <div id="chartAfterTenderContainer" class="bg-white p-4 rounded-2xl shadow-md flex-1">
                 <canvas id="chartAfterTender"></canvas>
             </div>
         </div>
@@ -148,16 +162,15 @@
 
     <div class="text-center mb-4 legend flex justify-center gap-4" id="legendContainer"></div>
 
-    <div id="tableContainer" class="bg-white p-4 rounded-lg shadow-md table-responsive overflow-hidden"></div>
+    <div id="tableContainer" class="bg-white p-4 rounded-2xl shadow-md table-responsive overflow-hidden"></div>
     
-    <div class="text-center mt-4 pagination" id="pagination"></div>
-
     <script>
         let allRows = [];
         let chartCurrentInstance = null;
         let chartTenderInstance = null;
         let currentSort = { column: null, asc: true };
-        let currentPage = 1;
+        let rowColorBasis = 'ihaleSonrasi'; 
+        let currentFilter = 'hepsi'; 
 
         // Eşik Değerleri
         let criticalThreshold = 6; 
@@ -188,7 +201,14 @@
              loadThresholds(); 
              initializeColumnSettings();
              renderLegend(); 
+             // Yükleme sırasında filtremeyi tetikler
+             applyFilters(); 
         });
+
+        function setRowColorBasis(basis) {
+            rowColorBasis = basis;
+            applyFilters();
+        }
 
         // CSV YÜKLEME VE ZAMAN KAYDI
         function loadCSV() {
@@ -199,7 +219,6 @@
             reader.onload = e => parseCSV(e.target.result);
             reader.readAsText(file, 'UTF-8');
             
-            // Yükleme zamanını kaydet (Sadece tarih/saat)
             const now = new Date();
             const dateString = now.toLocaleDateString('tr-TR') + ' ' + now.toLocaleTimeString('tr-TR');
             const reportInfo = document.getElementById('reportInfo');
@@ -225,7 +244,6 @@
                 };
             }).filter(r=>r['Malzeme Adı']);
 
-            currentPage = 1;
             applyFilters();
         }
 
@@ -255,24 +273,27 @@
         function renderLegend() {
             const container = document.getElementById('legendContainer');
             
+            const btnClass = 'py-1 px-3 rounded-lg border border-gray-300 hover:shadow-md transition duration-150';
+            const activeClass = 'font-bold shadow-lg ring-2 ring-custom-blue'; 
+
             const html = `
                 <button onclick="setFilterAndApply('success')" 
-                        class="py-1 px-3 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-300 hover:shadow-md transition duration-150">
+                        class="${btnClass} bg-gray-100 hover:bg-gray-200 ${currentFilter === 'success' ? activeClass : ''}">
                     Stok Yeterli (> ${warningThreshold} Ay)
                 </button>
 
                 <button onclick="setFilterAndApply('warning')" 
-                        class="py-1 px-3 rounded-lg bg-status-warning hover:bg-yellow-200 border border-gray-300 hover:shadow-md transition duration-150">
+                        class="${btnClass} bg-status-warning hover:bg-yellow-200 ${currentFilter === 'warning' ? activeClass : ''}">
                     Stok Azalıyor (${criticalThreshold} - ${warningThreshold} Ay)
                 </button>
 
                 <button onclick="setFilterAndApply('danger')" 
-                        class="py-1 px-3 rounded-lg bg-status-danger hover:bg-red-300 border border-gray-300 hover:shadow-md transition duration-150">
+                        class="${btnClass} bg-status-danger hover:bg-red-300 ${currentFilter === 'danger' ? activeClass : ''}">
                     Kritik Seviye (< ${criticalThreshold} Ay)
                 </button>
                 
                 <button onclick="setFilterAndApply('hepsi')" 
-                        class="py-1 px-3 rounded-lg bg-blue-200 hover:bg-blue-400 border border-blue-400 hover:shadow-md transition duration-150">
+                        class="${btnClass} bg-blue-200 hover:bg-blue-400 border-blue-400 ${currentFilter === 'hepsi' ? activeClass : ''}">
                     Tüm Durumlar
                 </button>
             `;
@@ -323,26 +344,19 @@
         }
         
         function setFilterAndApply(filterValue) {
-            document.getElementById('filterSelect').value = filterValue;
+            currentFilter = filterValue; 
+            renderLegend(); 
             applyFilters();
         }
 
         function renderTable(rows) {
             const container = document.getElementById('tableContainer');
             if (!rows.length){
-                container.innerHTML = '<p class="text-center text-gray-500">Henüz veri yok.</p>';
-                document.getElementById('pagination').innerHTML = '';
+                container.innerHTML = '<p class="text-center text-gray-500">Gösterilecek veri bulunamadı.</p>';
                 return;
             }
 
-            let rowsPerPage = parseInt(document.getElementById('rowsPerPage').value);
-            if (rowsPerPage === 0) rowsPerPage = rows.length; 
-
-            const totalPages = Math.ceil(rows.length / rowsPerPage);
-            if(currentPage > totalPages) currentPage = totalPages; 
-            const start = (currentPage - 1) * rowsPerPage;
-            const end = start + rowsPerPage;
-            const pageRows = rows.slice(start, end);
+            const pageRows = rows; 
 
             // Tablo HTML oluşturma - BAŞLIKLAR (TH)
             let html = `<table class="min-w-full">
@@ -372,11 +386,21 @@
 
             // Tablo HTML oluşturma - SATIRLAR (TD)
             pageRows.forEach((r, index) => {
-                // Satır arka plan rengi İhale Sonrası Durumuna göre belirlenir
+                
+                // SATIR RENKLENDİRME MANTIĞI 
+                let targetAy;
+                if (rowColorBasis === 'mevcutStok') {
+                    targetAy = r['Kaç Ay Yeter'];
+                } else {
+                    targetAy = r['İhale Sonrası Kaç Ay Yeter'];
+                }
+                
                 let rowCls = 'status-success';
-                const ayAfterTender = r['İhale Sonrası Kaç Ay Yeter']; 
-                if (ayAfterTender < criticalThreshold) rowCls = 'status-danger'; 
-                else if(ayAfterTender < warningThreshold) rowCls = 'status-warning';
+                if (targetAy < criticalThreshold) {
+                    rowCls = 'status-danger'; 
+                } else if(targetAy < warningThreshold) {
+                    rowCls = 'status-warning';
+                }
                 
                 const isLastRow = index === pageRows.length - 1; 
 
@@ -403,28 +427,21 @@
                     }
 
 
-                    // ******************************************************************
-                    // GÜNCELLENMİŞ ÖZELLİK: SADECE 'KAÇ AY YETER' SÜTUNU İÇİN RENK VE BOLD AYARLARI
-                    // ******************************************************************
-                    if (col.key === 'Kaç Ay Yeter') {
-                        const ayYeterlilik = r['Kaç Ay Yeter'];
-                        let textClass = 'text-gray-900'; // Varsayılan
+                    // YETERLİLİK SÜTUNLARI İÇİN ÖZEL RENK VE BOLD AYARLARI
+                    if (col.key === 'Kaç Ay Yeter' || col.key === 'İhale Sonrası Kaç Ay Yeter') {
+                        const ayYeterlilik = r[col.key];
+                        let textClass = 'text-gray-900';
                         
                         if (ayYeterlilik < criticalThreshold) {
-                            // KRİTİK EŞİK (Kırmızı ve Kalın)
                             textClass = 'font-bold text-red-600';
                         } else if (ayYeterlilik < warningThreshold) {
-                            // UYARI EŞİĞİ (Turuncu/Kahverengi ve Kalın)
                             textClass = 'font-bold text-yellow-700';
                         } else {
-                            // YETERLİ (Yeşil ve Kalın)
                             textClass = 'font-bold text-green-600';
                         }
                         
-                        // Sadece 'Kaç Ay Yeter' hücresine textClass'ı ekle
                         tdClass += ' ' + textClass;
                     } 
-                    // ******************************************************************
 
                     if (isLastRow) {
                         if (tdIndex === 0) tdClass += ' rounded-bl-lg';
@@ -439,64 +456,29 @@
 
             html += '</tbody></table>';
             container.innerHTML = html;
-
-            // Sayfalama kodları
-            const paginationDiv = document.getElementById('pagination');
-            if (parseInt(document.getElementById('rowsPerPage').value) === 0) {
-                paginationDiv.innerHTML = '';
-                return;
-            }
-            
-            let paginationHtml = '';
-            const btnBase = 'py-1 px-3 mx-1 rounded-md text-white transition duration-150';
-            const btnActive = 'bg-custom-darkblue font-bold';
-            const btnInactive = 'bg-custom-blue hover:bg-custom-darkblue';
-            const btnDisabled = 'bg-gray-400 cursor-not-allowed';
-
-            const totalPageCount = totalPages; 
-            const firstBtnClass = currentPage === 1 ? btnDisabled : btnInactive;
-            const prevBtnClass = currentPage === 1 ? btnDisabled : btnInactive;
-            const lastBtnClass = currentPage === totalPageCount ? btnDisabled : btnInactive;
-            const nextBtnClass = currentPage === totalPageCount ? btnDisabled : btnInactive;
-
-            paginationHtml += `<button onclick="goPage(1)" class="${btnBase} ${firstBtnClass}" ${currentPage === 1 ? 'disabled' : ''}>İlk</button>`;
-            paginationHtml += `<button onclick="goPage(${currentPage - 1})" class="${btnBase} ${prevBtnClass}" ${currentPage === 1 ? 'disabled' : ''}>Önceki</button>`;
-
-            for (let i = 1; i <= totalPageCount; i++) {
-                const pageClass = i === currentPage ? btnActive : btnInactive;
-                paginationHtml += `<button onclick="goPage(${i})" class="${btnBase} ${pageClass}">${i}</button>`;
-            }
-
-            paginationHtml += `<button onclick="goPage(${currentPage + 1})" class="${btnBase} ${nextBtnClass}" ${currentPage === totalPageCount ? 'disabled' : ''}>Sonraki</button>`;
-            paginationHtml += `<button onclick="goPage(${totalPageCount})" class="${btnBase} ${lastBtnClass}" ${currentPage === totalPageCount ? 'disabled' : ''}>Son</button>`;
-
-            paginationDiv.innerHTML = '<div class="pagination flex justify-center">' + paginationHtml + '</div>';
         }
 
-        function goPage(page){ 
-            currentPage=page; 
-            applyFilters(); 
-        }
-        
         function sortTable(col){
             const asc = currentSort.column===col?!currentSort.asc:true;
             currentSort={column:col,asc};
             allRows.sort((a,b)=>{
                 const valA=a[col]||0,valB=b[col]||0;
-                return typeof valA==='string'? (asc? valA.localeCompare(valB): valB.localeCompare(a[col])) : (asc? valA-valB: valB-valA);
+                return typeof valA==='string'? (asc? valA.localeCompare(valB): valB.localeCompare(a[col])) : (asc? valA-valB: valB-a[col]);
             });
             applyFilters();
         }
 
         function applyFilters(){
             const search=document.getElementById('searchInput').value.toLowerCase();
-            const filter=document.getElementById('filterSelect').value;
+            const filter=currentFilter; 
             
             let filtered=allRows.filter(r=>r['Malzeme Adı'].toLowerCase().includes(search));
             
+            const filterBasis = (rowColorBasis === 'mevcutStok') ? 'Kaç Ay Yeter' : 'İhale Sonrası Kaç Ay Yeter';
+
             if(filter!=='hepsi'){
                 filtered=filtered.filter(r=>{
-                    const ay=r['İhale Sonrası Kaç Ay Yeter']; 
+                    const ay=r[filterBasis]; 
                     if(filter==='success') return ay>=warningThreshold;
                     if(filter==='warning') return ay>=criticalThreshold && ay<warningThreshold;
                     if(filter==='danger') return ay<criticalThreshold;
