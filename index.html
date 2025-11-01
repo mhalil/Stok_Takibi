@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Malzeme Stok Durumu</title>
+    <title>Malzeme Stok Durumu ve Maliyet Analizi</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -80,7 +80,7 @@
 </head>
 
 <body class="font-sans bg-gray-100 p-5">
-    <h1 class="text-3xl font-bold text-center mb-1 text-gray-800">📊 ABONE İŞLERİ DAİRESİ BAŞKANLIKLARI AMBAR STOK DURUMU 🗠</h1>
+    <h1 class="text-3xl font-bold text-center mb-1 text-gray-800">📊 ABONE İŞLERİ DAİRESİ BAŞKANLIKLARI AMBAR STOK DURUMU VE MALİYET ANALİZİ 🗠</h1>
     
     <input type="text" id="reportInfo" 
             placeholder="Rapor tarihini, versiyonunu veya ek notları buraya girin..." 
@@ -151,6 +151,7 @@
                         <a href="#" onclick="toggleAllCategories(true); return false;" class="text-xs text-custom-blue hover:text-custom-darkblue font-semibold">Tümünü Seç</a>
                         <a href="#" onclick="toggleAllCategories(false); return false;" class="text-xs text-red-500 hover:text-red-700 font-semibold">Tümünü Kaldır</a>
                     </div>
+
                     <div id="categoryCheckboxes" class="space-y-1">
                         </div>
                 </div>
@@ -168,6 +169,7 @@
                         <a href="#" onclick="toggleAllColumns(true); return false;" class="text-xs text-custom-blue hover:text-custom-darkblue font-semibold">Tümünü Seç</a>
                         <a href="#" onclick="toggleAllColumns(false); return false;" class="text-xs text-red-500 hover:text-red-700 font-semibold">Tümünü Kaldır</a>
                     </div>
+                    
                     <div id="columnCheckboxes" class="space-y-1">
                         </div>
                 </div>
@@ -211,8 +213,11 @@
             'Kategori': true, 
             'Malzeme Adı': true,
             'Mevcut Stok': true,
+            'Birim Fiyat': true, 
+            'Mevcut Stok Değeri': true, 
             'Yıllık Tüketim': true,
-            'İhale Miktarı': true,
+            'Ambara teslim edilecek': true, 
+            'Ambara Teslim Edilecek Maliyeti': true, 
             'Kaç Ay Yeter': true,
             'İhale Sonrası Kaç Ay Yeter': true,
             'Açıklama': true
@@ -222,13 +227,24 @@
         const columnOrder = [
             { key: 'Kategori', label: 'Malzeme Kategorisi' }, 
             { key: 'Malzeme Adı', label: 'Malzeme Adı' },
-            { key: 'Mevcut Stok', label: 'Mevcut Stok' },
-            { key: 'Yıllık Tüketim', label: 'Yıllık Tüketim' },
-            { key: 'İhale Miktarı', label: 'Ambara Teslim Edilecek Miktar' },
+            { key: 'Mevcut Stok', label: 'Mevcut Stok (Miktar)' }, 
+            { key: 'Birim Fiyat', label: 'Birim Fiyat (₺)' }, 
+            { key: 'Mevcut Stok Değeri', label: 'Mevcut Stok Değeri (₺)' }, 
+            { key: 'Yıllık Tüketim', label: 'Yıllık Tüketim (Miktar)' }, 
+            { key: 'Ambara teslim edilecek', label: 'Ambara Teslim Edilecek' }, 
+            { key: 'Ambara Teslim Edilecek Maliyeti', label: 'Ambara Teslim Edilecek Maliyeti (₺)' }, 
             { key: 'Kaç Ay Yeter', label: 'Mevcut Stok Kaç Ay Yeter' },
             { key: 'İhale Sonrası Kaç Ay Yeter', label: 'Teslim Sonrası Stok Kaç Ay Yeter' },
             { key: 'Açıklama', label: 'Açıklama' }
         ];
+        
+        // Parasal sütun anahtarlarını belirleme
+        const currencyKeys = [
+            'Birim Fiyat', 
+            'Mevcut Stok Değeri', 
+            'Ambara Teslim Edilecek Maliyeti'
+        ];
+
 
         document.addEventListener('DOMContentLoaded', () => {
             loadThresholds();  
@@ -240,53 +256,50 @@
             applyFilters();  
         });
 
-        // YENİ FONKSİYON: Tüm kategorilerin seçim durumunu değiştirir
+        // Para birimi formatlayıcı (2 ondalık basamak, ₺ simgesi)
+        function formatCurrency(value) {
+            if (typeof value !== 'number' || isNaN(value)) return '';
+            return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        
+        // Sayı formatlayıcı (Miktar alanları için)
+        function formatNumber(value, decimals = 0) {
+            if (typeof value !== 'number' || isNaN(value)) return '';
+            return value.toLocaleString('tr-TR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        }
+
+
+        // Diğer toggle ve update fonksiyonları (Değişmedi)
         function toggleAllCategories(shouldSelect) {
             const checkboxes = document.querySelectorAll('#categoryCheckboxes input[type="checkbox"]');
             
             checkboxes.forEach(checkbox => {
-                const categoryKey = checkbox.id.substring(4).replace(/-/g, ' '); // id'den kategori adını geri çıkar
-                
-                // Checkbox'ın durumunu ayarla
+                const categoryKey = checkbox.id.substring(4).replace(/-/g, ' '); 
                 checkbox.checked = shouldSelect;
-                
-                // categorySelection nesnesini güncelle
                 categorySelection[categoryKey] = shouldSelect;
             });
-
             applyFilters();
         }
 
-        // YENİ FONKSİYON: Tüm sütunların görünürlük durumunu değiştirir
         function toggleAllColumns(shouldSelect) {
-            // Malzeme Adı sütunu sabit kalmalıdır
             const nonFixedColumns = columnOrder.filter(col => col.key !== 'Malzeme Adı'); 
 
             nonFixedColumns.forEach(col => {
                 const checkbox = document.getElementById(`col-${col.key.replace(/\s/g, '-')}`);
-                
                 if (checkbox) {
-                    // Checkbox'ın durumunu ayarla
                     checkbox.checked = shouldSelect;
-                    
-                    // columnVisibility nesnesini güncelle
                     columnVisibility[col.key] = shouldSelect;
                 }
             });
-
-             // Malzeme Adı'nı her zaman görünür tut
             columnVisibility['Malzeme Adı'] = true; 
-            
             applyFilters();
         }
 
-        // Kategori Ayarları Butonu ve Açılır Menü Kontrolü
         function toggleCategorySettings() {
             const dropdown = document.getElementById('categoryDropdown');
             dropdown.classList.toggle('hidden');
         }
 
-        // Kategori Seçimi Güncelleme
         function updateCategorySelection(isSelected, categoryKey) {
             categorySelection[categoryKey] = isSelected;
             applyFilters();
@@ -297,7 +310,7 @@
             applyFilters();
         }
 
-        // CSV YÜKLEME VE ZAMAN KAYDI
+        // CSV YÜKLEME VE PARSE İŞLEMLERİ 
         function loadCSV() {
             const fileInput = document.getElementById('csvFile');
             const file = fileInput.files[0];
@@ -312,61 +325,84 @@
             reportInfo.value = dateString;  
         }
 
+        function parseValue(value) {
+            if (!value) return 0;
+            return parseFloat(String(value).replace(/\s/g, '').replace(',', '.')); 
+        }
+
         function parseCSV(csvText) {
             csvText = csvText.replace(/\uFEFF/g, '').trim();
-            const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+            const parsed = Papa.parse(csvText, { 
+                header: true, 
+                skipEmptyLines: true,
+                delimiter: ';', 
+            });
             
-            const categories = new Set(); 
+            const categories = new Set(); // Kategori adlarını toplamak için Set
             const materialNames = new Set(); 
 
             allRows = parsed.data.map(r => {
-                const yillik = parseFloat((r['Yıllık Tüketim']||'0').replace(',','.'));
-                const stok = parseFloat((r['Mevcut Stok']||'0').replace(',','.'));
-                const ihale = parseFloat((r['İhale Miktarı']||'0').replace(',','.'));
+                const birimFiyat = parseValue(r['Birim Fiyat']); 
+                
+                const yillik = parseValue(r['Yıllık Tüketim']);
+                const stok = parseValue(r['Mevcut Stok']);
+                
+                const ihaleMiktari = parseValue(r['İhale Miktarı']); 
+                const ihaleAnahtar = 'Ambara teslim edilecek';
+
                 const aylik = yillik/12;
 
                 const category = (r['Kategori'] || 'Tanımsız').trim(); 
                 const material = (r['Malzeme Adı']||'').trim(); 
+                
+                // KATEGORİLERİ TOPLA
+                if (category) categories.add(category);
+                if (material) materialNames.add(material);
 
-                categories.add(category); 
-                if (material) materialNames.add(material); 
 
                 return {
                     'Kategori': category, 
                     'Malzeme Adı': material,
                     'Mevcut Stok': stok,
+                    'Birim Fiyat': birimFiyat, 
+                    'Mevcut Stok Değeri': stok * birimFiyat, 
                     'Yıllık Tüketim': yillik,
-                    'İhale Miktarı': ihale,
-                    'Kaç Ay Yeter': aylik? stok/aylik:0,
-                    'İhale Sonrası Kaç Ay Yeter': aylik? (stok+ihale)/aylik:0,
+                    
+                    [ihaleAnahtar]: ihaleMiktari, 
+                    'Ambara Teslim Edilecek Maliyeti': ihaleMiktari * birimFiyat, 
+                    
+                    'Kaç Ay Yeter': aylik ? stok / aylik : 0,
+                    'İhale Sonrası Kaç Ay Yeter': aylik ? (stok + ihaleMiktari) / aylik : 0,
                     'Açıklama': (r['Açıklama']||'').trim()
                 };
             }).filter(r=>r['Malzeme Adı']);
             
+            // KATEGORİLERİ VE MALZEMELERİ BAŞLAT
             initializeCategorySettings(categories);
             populateMaterialFilter(materialNames); 
 
             applyFilters();
         }
         
-        // Kategori filtreleme seçeneklerini checkbox olarak doldurur
+        // KATEGORİ AYARLARI FONKSİYONU - TÜRKÇE SIRALAMA EKLENDİ
         function initializeCategorySettings(categories) {
             const container = document.getElementById('categoryCheckboxes');
             let html = '';
             
-            // Yeni kategoriler için varsayılan olarak seçili ayarla
             Array.from(categories).forEach(cat => {
                 if (!(cat in categorySelection)) {
-                    categorySelection[cat] = true; // Varsayılan olarak tüm kategoriler seçili gelsin
+                    categorySelection[cat] = true; 
                 }
             });
 
-            // Checkbox'ları oluştur
-            const sortedCategories = Array.from(categories).sort();
+            // Türkçe alfabetik sıralama
+            const sortedCategories = Array.from(categories).sort((a, b) => 
+                a.localeCompare(b, 'tr', { sensitivity: 'base' })
+            );
+
             sortedCategories.forEach(cat => {
                 const isSelected = categorySelection[cat];
                 const checked = isSelected ? 'checked' : '';
-                // ID oluşturulurken boşluklar tire ile değiştirilir, filtrelemede geri alınır.
                 const id = `cat-${cat.replace(/\s/g, '-')}`; 
 
                 html += `
@@ -383,7 +419,6 @@
             container.innerHTML = html;
         }
 
-        // Malzeme Tom Select'i başlatır
         function initializeMaterialMultiSelect() {
              materialTomSelect = new TomSelect('#materialMultiSelect', {
                 plugins: ['remove_button', 'clear_button'],
@@ -397,14 +432,18 @@
              });
         }
         
-        // Malzeme filtreleme seçeneklerini doldurur
         function populateMaterialFilter(materialNames) {
             if (!materialTomSelect) return;
 
             materialTomSelect.clear(true);
             materialTomSelect.clearOptions();
+            
+            // Malzeme listesini de Türkçe olarak sırala
+            const sortedMaterialNames = Array.from(materialNames).sort((a, b) => 
+                a.localeCompare(b, 'tr', { sensitivity: 'base' })
+            );
 
-            const options = Array.from(materialNames).sort().map(name => ({
+            const options = sortedMaterialNames.map(name => ({
                 value: name,
                 text: name
             }));
@@ -412,7 +451,6 @@
             materialTomSelect.addOptions(options);
         }
 
-        // EŞİK AYARLARI (Değişmedi)
         function updateThresholds() {
             const crit = parseFloat(document.getElementById('criticalThreshold').value);
             const warn = parseFloat(document.getElementById('warningThreshold').value);
@@ -465,7 +503,6 @@
             container.innerHTML = html;
         }
         
-        // SÜTUN GİZLEME AYARLARI
         function initializeColumnSettings() {
             const container = document.getElementById('columnCheckboxes');
             let html = '';
@@ -537,15 +574,9 @@
                 if (index === 0) cornerClass = 'rounded-tl-2xl';
                 if (index === visibleColumns.length - 1) cornerClass = 'rounded-tr-2xl';
                 
-                let labelText = col.label;
-
-                if (col.key === 'İhale Miktarı') labelText = 'Ambara Teslim Edilecek Miktar';
-                if (col.key === 'Kaç Ay Yeter') labelText = 'Mevcut Stok Kaç Ay Yeter';
-                if (col.key === 'İhale Sonrası Kaç Ay Yeter') labelText = 'Teslim Sonrası Stok Kaç Ay Yeter';
-                
                 html += `
                     <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer ${cornerClass}"  
-                        onclick="sortTable('${col.key}')">${labelText} ↕</th>
+                        onclick="sortTable('${col.key}')">${col.label} ↕</th>
                 `;
             });
             
@@ -572,24 +603,37 @@
                 html += `<tr class="${rowCls}">`;
                 
                 visibleColumns.forEach((col, tdIndex) => {
+                    // TD Sınıfı belirleme
                     let tdClass = 'px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center';
                     
+                    // Metin ve Kategori Sütunları
                     if (col.key === 'Malzeme Adı' || col.key === 'Açıklama' || col.key === 'Kategori') { 
                         tdClass = 'px-6 py-4 whitespace-normal text-sm text-gray-900 ' + (col.key === 'Malzeme Adı' || col.key === 'Kategori' ? 'text-left' : 'text-left');
                     }
                     
+                    // Parasal Sütunları Sağa Hizalama
+                    if (currencyKeys.includes(col.key)) {
+                        tdClass = tdClass.replace('text-center', 'text-right');
+                    } 
+
                     let cellValue = r[col.key];
-                    if (typeof cellValue === 'number' && !isNaN(cellValue)) {
-                          if (col.key.includes('Ay Yeter')) {
-                            cellValue = cellValue.toFixed(1).replace('.', ',');
-                        } else {
-                            cellValue = cellValue.toLocaleString('tr-TR');
+                    
+                    // Maliyet ve Birim Fiyatı formatla (₺ simgesi eklenir)
+                    if (currencyKeys.includes(col.key)) {
+                        cellValue = formatCurrency(r[col.key]); 
+                    } 
+                    else if (col.key.includes('Ay Yeter')) {
+                        if (typeof cellValue === 'number' && !isNaN(cellValue)) {
+                            cellValue = cellValue.toFixed(1).replace('.', ','); // Stok yeterliliğini 1 ondalık basamakla göster
                         }
+                    } else if (typeof cellValue === 'number' && !isNaN(cellValue)) {
+                        // Diğer sayıları formatla (Mevcut Stok, Yıllık Tüketim, Ambara teslim edilecek)
+                        cellValue = formatNumber(cellValue); // Tam sayı olarak formatla (0 ondalık)
                     } else if (cellValue === null || cellValue === undefined) {
                         cellValue = '';
                     }
 
-
+                    // YETERLİLİK SÜTUNLARI İÇİN ÖZEL RENK VE BOLD AYARLARI 
                     if (col.key === 'Kaç Ay Yeter' || col.key === 'İhale Sonrası Kaç Ay Yeter') {
                         const ayYeterlilik = r[col.key];
                         let textClass = 'text-gray-900';
@@ -623,10 +667,24 @@
         function sortTable(col){
             const asc = currentSort.column===col?!currentSort.asc:true;
             currentSort={column:col,asc};
+            
+            // Tablo sıralamasını da Türkçe yapacak şekilde güncelledim
             allRows.sort((a,b)=>{
-                const valA=a[col]||0,valB=b[col]||0;
-                return typeof valA==='string'? (asc? valA.localeCompare(valB): valB.localeCompare(a[col])) : (asc? valA-valB: valB-a[col]);
+                const valA=a[col]||'';
+                const valB=b[col]||'';
+                
+                if (typeof valA === 'string' && typeof valB === 'string') {
+                    // Türkçe string sıralaması
+                    const comparison = valA.localeCompare(valB, 'tr', { sensitivity: 'base' });
+                    return asc ? comparison : -comparison;
+                } else {
+                    // Sayısal sıralama (boş değerler 0 kabul edilir)
+                    const numA = parseFloat(valA) || 0;
+                    const numB = parseFloat(valB) || 0;
+                    return asc ? numA - numB : numB - numA;
+                }
             });
+
             applyFilters();
         }
 
@@ -634,15 +692,12 @@
             const selectedMaterials = materialTomSelect ? materialTomSelect.getValue() : [];
             const filter = currentFilter;  
             
-            // Seçili kategorileri al (Sadece 'true' olanlar)
             const selectedCategories = Object.keys(categorySelection).filter(key => categorySelection[key]);
 
             let filtered = allRows;
             
             // 1. Kategoriye göre filtreleme
             if (Object.keys(categorySelection).length > 0) {
-                 // Eğer hiç kategori seçilmemişse bile (selectedCategories.length === 0), 
-                 // bu blok çalışır ve filtered boş kalır.
                 filtered = filtered.filter(r => selectedCategories.includes(r['Kategori']));
             }
             
@@ -669,8 +724,6 @@
         }
 
         function exportPDF(){ window.print(); }
-
-        // GRAFİK VE FORMATLAMA (Değişmedi)
 
         function formatDaysToMonths(totalDays) {
             if (totalDays < 0) return '0 Gün (Tükendi)';
