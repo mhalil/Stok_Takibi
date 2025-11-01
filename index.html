@@ -24,7 +24,7 @@
     </script>
 
     <style>
-        /* YENİ CSS: İki grafik taşıyıcısına sabit yükseklik verilir */
+        /* Grafik taşıyıcılarına sabit yükseklik verilir */
         #chartCurrentContainer, #chartAfterTenderContainer {
             height: 350px; 
         }
@@ -34,10 +34,10 @@
             overflow-x: auto;
         }
         
-        /* YENİ CSS: Tüm çizgileri kaldır ve satır aralarına boşluk bırak */
+        /* Tüm çizgileri kaldır ve satır aralarına boşluk bırak */
         #tableContainer table {
             border-collapse: separate;
-            border-spacing: 0 0.4rem; /* Yatay boşluk 0, Dikey boşluk 0.4rem (ince boşluk) */
+            border-spacing: 0 0.4rem; /* Dikey boşluk */
         }
         
         /* ---------------------------------------------------------------- */
@@ -49,21 +49,18 @@
             background-color: #f3f4f6 !important; 
         }
         
-        /* Kritik Durum kuralları (ID ile en yüksek özgüllük verildi) */
+        /* Kritik Durum kuralları */
         #tableContainer tr.status-warning { background-color: #fff8dc !important; } 
         #tableContainer tr.status-danger { background-color: #f8d7da !important; } 
         
         /* YAZDIRMA (PDF) AYARLARI */
         @media print {
-            /* Ekrandaki tüm görünüm ayarlarının (boşluklar, renkler) korunması için */
-            /* Satır boşluğunu ve kenarlıkları sıfırlayan kurallar kaldırıldı. */
             .mb-6 { margin-bottom: 0 !important; } 
             #chartsContainer { padding: 0 !important; }
             .controls, .legend, .pagination, #columnSettingsContainer { 
-                display: none !important; /* Kontrol elemanları, ayar menüsü, grafikler ve sayfalama gizlenir. */
+                display: none !important; /* Kontrol elemanları, ayar menüsü, efsane ve sayfalama gizlenir. */
             }
             h1 { margin-top: 0; }
-            /* Yazdırmada gölge kaldırılır, boşluk (padding) sıfırlanır */
             #tableContainer { box-shadow: none; padding: 0; }
         }
 
@@ -79,8 +76,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 
-<body class="font-sans bg-gray-100 text-gray-800 p-5">
-    <h1 class="text-3xl font-bold text-center mb-1">📊 ABONE İŞLERİ DAİRESİ BAŞKANLIKLARI AMBAR STOK DURUMU 🗠</h1>
+<body class="font-sans bg-gray-100 p-5">
+    <h1 class="text-3xl font-bold text-center mb-1 text-gray-800">📊 ABONE İŞLERİ DAİRESİ BAŞKANLIKLARI AMBAR STOK DURUMU 🗠</h1>
     
     <input type="text" id="reportInfo" 
             placeholder="Rapor tarihini, versiyonunu veya ek notları buraya girin..." 
@@ -103,6 +100,17 @@
             <option value="warning">Stok Azalıyor</option>
             <option value="danger">Kritik Seviye</option>
         </select>
+
+        <div class="flex gap-2 border border-gray-300 rounded-lg p-2 bg-gray-50">
+            <div class="flex items-center gap-1">
+                <label for="criticalThreshold" class="text-sm font-medium text-gray-700">Kritik Eşik (Ay):</label>
+                <input type="number" id="criticalThreshold" value="6" min="1" onchange="updateThresholds()" class="w-12 p-1 border border-red-300 rounded text-center text-sm">
+            </div>
+            <div class="flex items-center gap-1">
+                <label for="warningThreshold" class="text-sm font-medium text-gray-700">Uyarı Eşiği (Ay):</label>
+                <input type="number" id="warningThreshold" value="8" min="1" onchange="updateThresholds()" class="w-12 p-1 border border-yellow-300 rounded text-center text-sm">
+            </div>
+        </div>
         
         <select id="rowsPerPage" onchange="applyFilters()" class="p-2 border border-gray-300 rounded-lg">
             <option value="5">5 Satır / Sayfa</option>
@@ -113,15 +121,17 @@
         </select>
         
         <div class="relative inline-block text-left" id="columnSettingsContainer">
-          <button onclick="toggleColumnSettings()" class="bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150 flex items-center">
-          ⚙ Sütun Ayarları
-          </button>
+            <button onclick="toggleColumnSettings()" class="bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150 flex items-center">
+                ✓ Sütun Ayarları
+            </button>
+
             <div id="columnDropdown" class="dropdown-menu origin-top-right absolute right-0 mt-2 w-64 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden p-2">
                 <p class="text-sm font-bold text-gray-700 mb-2 border-b pb-1">Gösterilecek Sütunları Seçin:</p>
                 <div id="columnCheckboxes" class="space-y-1">
                     </div>
             </div>
         </div>
+        
         <button onclick="exportPDF()" class="bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150">PDF Olarak Dışa Aktar</button>
     </div>
 
@@ -136,19 +146,7 @@
         </div>
     </div>
 
-    <div class="text-center mb-4 legend flex justify-center gap-4">
-        <button onclick="setFilterAndApply('success')" 
-                class="py-1 px-3 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-300 hover:shadow-md transition duration-150">Stok Yeterli (> 8 Ay)</button>
-
-        <button onclick="setFilterAndApply('warning')" 
-                class="py-1 px-3 rounded-lg bg-status-warning hover:bg-yellow-200 border border-gray-300 hover:shadow-md transition duration-150">Stok Azalıyor (6 - 8 Ay)</button>
-
-        <button onclick="setFilterAndApply('danger')" 
-                class="py-1 px-3 rounded-lg bg-status-danger hover:bg-red-300 border border-gray-300 hover:shadow-md transition duration-150">Kritik Seviye (< 6 Ay)</button>
-                
-        <button onclick="setFilterAndApply('hepsi')" 
-                class="py-1 px-3 rounded-lg bg-blue-200 hover:bg-blue-400 border border-blue-400 hover:shadow-md transition duration-150">Tüm Durumlar</button>
-    </div>
+    <div class="text-center mb-4 legend flex justify-center gap-4" id="legendContainer"></div>
 
     <div id="tableContainer" class="bg-white p-4 rounded-lg shadow-md table-responsive overflow-hidden"></div>
     
@@ -160,9 +158,12 @@
         let chartTenderInstance = null;
         let currentSort = { column: null, asc: true };
         let currentPage = 1;
+
+        // Eşik Değerleri
+        let criticalThreshold = 6; 
+        let warningThreshold = 8; 
         
-        // YENİ EKLENEN: Sütun görünürlüğü durumu
-        // Başlangıçta tüm sütunlar görünür.
+        // Sütun görünürlüğü durumu
         let columnVisibility = {
             'Malzeme Adı': true,
             'Mevcut Stok': true,
@@ -173,7 +174,6 @@
             'Açıklama': true
         };
 
-        // Tablo başlıklarının doğru sırası ve gösterim adları
         const columnOrder = [
             { key: 'Malzeme Adı', label: 'Malzeme Adı' },
             { key: 'Mevcut Stok', label: 'Mevcut Stok' },
@@ -184,51 +184,13 @@
             { key: 'Açıklama', label: 'Açıklama' }
         ];
 
-        // Sayfa yüklendiğinde ayar panelini oluştur
-        document.addEventListener('DOMContentLoaded', initializeColumnSettings);
+        document.addEventListener('DOMContentLoaded', () => {
+             loadThresholds(); 
+             initializeColumnSettings();
+             renderLegend(); 
+        });
 
-        // YENİ FONKSİYON: Sütun ayarları panelini oluşturur.
-        function initializeColumnSettings() {
-            const container = document.getElementById('columnCheckboxes');
-            let html = '';
-            
-            columnOrder.forEach(col => {
-                const checked = columnVisibility[col.key] ? 'checked' : '';
-                const disabled = (col.key === 'Malzeme Adı') ? 'disabled' : ''; // Malzeme Adı zorunlu
-                
-                html += `
-                    <div class="flex items-center">
-                        <input type="checkbox" id="col-${col.key.replace(/\s/g, '-')}" 
-                               data-column-key="${col.key}" 
-                               ${checked} ${disabled}
-                               onchange="updateColumnVisibility(this.checked, '${col.key}')" 
-                               class="h-4 w-4 text-custom-blue border-gray-300 rounded">
-                        <label for="col-${col.key.replace(/\s/g, '-')}" class="ml-2 text-sm text-gray-700 ${disabled ? 'opacity-50' : ''}">
-                            ${col.label}
-                        </label>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        }
-
-        // YENİ FONKSİYON: Sütun görünürlüğünü günceller ve tabloyu yeniden çizer.
-        function updateColumnVisibility(isVisible, key) {
-            // Malzeme Adı sütununun gizlenmesini engelle
-            if (key === 'Malzeme Adı' && !isVisible) {
-                 document.getElementById(`col-${key.replace(/\s/g, '-')}`).checked = true;
-                 return;
-            }
-            columnVisibility[key] = isVisible;
-            applyFilters(); // Tabloyu yeniden çizer
-        }
-
-        // YENİ FONKSİYON: Ayarlar menüsünü açıp kapatır.
-        function toggleColumnSettings() {
-            const dropdown = document.getElementById('columnDropdown');
-            dropdown.classList.toggle('hidden');
-        }
-
+        // CSV YÜKLEME VE ZAMAN KAYDI
         function loadCSV() {
             const fileInput = document.getElementById('csvFile');
             const file = fileInput.files[0];
@@ -236,6 +198,12 @@
             const reader = new FileReader();
             reader.onload = e => parseCSV(e.target.result);
             reader.readAsText(file, 'UTF-8');
+            
+            // Yükleme zamanını kaydet (Sadece tarih/saat)
+            const now = new Date();
+            const dateString = now.toLocaleDateString('tr-TR') + ' ' + now.toLocaleTimeString('tr-TR');
+            const reportInfo = document.getElementById('reportInfo');
+            reportInfo.value = dateString; 
         }
 
         function parseCSV(csvText) {
@@ -260,7 +228,95 @@
             currentPage = 1;
             applyFilters();
         }
+
+        // EŞİK AYARLARI
+        function updateThresholds() {
+            const crit = parseFloat(document.getElementById('criticalThreshold').value);
+            const warn = parseFloat(document.getElementById('warningThreshold').value);
+            
+            if (crit >= warn) {
+                alert('Kritik Eşik (Ay) değeri, Uyarı Eşiği (Ay) değerinden küçük olmalıdır. Lütfen değerleri kontrol edin.');
+                document.getElementById('criticalThreshold').value = criticalThreshold; 
+                return;
+            }
+
+            criticalThreshold = crit;
+            warningThreshold = warn;
+            
+            renderLegend(); 
+            applyFilters(); 
+        }
         
+        function loadThresholds() {
+            document.getElementById('criticalThreshold').value = criticalThreshold;
+            document.getElementById('warningThreshold').value = warningThreshold;
+        }
+
+        function renderLegend() {
+            const container = document.getElementById('legendContainer');
+            
+            const html = `
+                <button onclick="setFilterAndApply('success')" 
+                        class="py-1 px-3 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-300 hover:shadow-md transition duration-150">
+                    Stok Yeterli (> ${warningThreshold} Ay)
+                </button>
+
+                <button onclick="setFilterAndApply('warning')" 
+                        class="py-1 px-3 rounded-lg bg-status-warning hover:bg-yellow-200 border border-gray-300 hover:shadow-md transition duration-150">
+                    Stok Azalıyor (${criticalThreshold} - ${warningThreshold} Ay)
+                </button>
+
+                <button onclick="setFilterAndApply('danger')" 
+                        class="py-1 px-3 rounded-lg bg-status-danger hover:bg-red-300 border border-gray-300 hover:shadow-md transition duration-150">
+                    Kritik Seviye (< ${criticalThreshold} Ay)
+                </button>
+                
+                <button onclick="setFilterAndApply('hepsi')" 
+                        class="py-1 px-3 rounded-lg bg-blue-200 hover:bg-blue-400 border border-blue-400 hover:shadow-md transition duration-150">
+                    Tüm Durumlar
+                </button>
+            `;
+            container.innerHTML = html;
+        }
+        
+        // SÜTUN GİZLEME AYARLARI
+        function initializeColumnSettings() {
+            const container = document.getElementById('columnCheckboxes');
+            let html = '';
+            
+            columnOrder.forEach(col => {
+                const checked = columnVisibility[col.key] ? 'checked' : '';
+                const disabled = (col.key === 'Malzeme Adı') ? 'disabled' : ''; 
+                
+                html += `
+                    <div class="flex items-center">
+                        <input type="checkbox" id="col-${col.key.replace(/\s/g, '-')}" 
+                               data-column-key="${col.key}" 
+                               ${checked} ${disabled}
+                               onchange="updateColumnVisibility(this.checked, '${col.key}')" 
+                               class="h-4 w-4 text-custom-blue border-gray-300 rounded">
+                        <label for="col-${col.key.replace(/\s/g, '-')}" class="ml-2 text-sm text-gray-700 ${disabled ? 'opacity-50' : ''}">
+                            ${col.label}
+                        </label>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+        function updateColumnVisibility(isVisible, key) {
+            if (key === 'Malzeme Adı' && !isVisible) {
+                 document.getElementById(`col-${key.replace(/\s/g, '-')}`).checked = true;
+                 return;
+            }
+            columnVisibility[key] = isVisible;
+            applyFilters(); 
+        }
+        function toggleColumnSettings() {
+            const dropdown = document.getElementById('columnDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // FİLTRELEME VE TABLO İŞLEMLERİ
         function clearSearch() {
             document.getElementById('searchInput').value = ''; 
             applyFilters(); 
@@ -293,18 +349,15 @@
                 <thead>
                     <tr>`;
             
-            // Başlık satırını görünürlük ayarına göre oluştur
             const visibleColumns = columnOrder.filter(col => columnVisibility[col.key]);
             
             visibleColumns.forEach((col, index) => {
-                // Kenarlık sınıflandırması sadece ilk ve son görünür sütuna uygulanır
                 let cornerClass = '';
                 if (index === 0) cornerClass = 'rounded-tl-2xl';
                 if (index === visibleColumns.length - 1) cornerClass = 'rounded-tr-2xl';
                 
                 let labelText = col.label;
 
-                // Tablo başlıklarını, gösterilen label'a göre ayarla
                 if (col.key === 'İhale Miktarı') labelText = 'Ambara Teslim Edilecek Miktar';
                 if (col.key === 'Kaç Ay Yeter') labelText = 'Mevcut Stok Kaç Ay Yeter';
                 if (col.key === 'İhale Sonrası Kaç Ay Yeter') labelText = 'Teslim Sonrası Stok Kaç Ay Yeter';
@@ -319,14 +372,15 @@
 
             // Tablo HTML oluşturma - SATIRLAR (TD)
             pageRows.forEach((r, index) => {
-                let cls = 'status-success';
-                const ay = r['İhale Sonrası Kaç Ay Yeter']; 
-                if (ay < 6) cls = 'status-danger';
-                else if(ay < 8) cls = 'status-warning';
+                // Satır arka plan rengi İhale Sonrası Durumuna göre belirlenir
+                let rowCls = 'status-success';
+                const ayAfterTender = r['İhale Sonrası Kaç Ay Yeter']; 
+                if (ayAfterTender < criticalThreshold) rowCls = 'status-danger'; 
+                else if(ayAfterTender < warningThreshold) rowCls = 'status-warning';
                 
                 const isLastRow = index === pageRows.length - 1; 
 
-                html += `<tr class="${cls}">`;
+                html += `<tr class="${rowCls}">`;
                 
                 // Hücreleri görünürlük ayarına göre oluştur
                 visibleColumns.forEach((col, tdIndex) => {
@@ -336,15 +390,8 @@
                         tdClass = 'px-6 py-4 whitespace-normal text-sm text-gray-900 ' + (col.key === 'Malzeme Adı' ? 'text-left' : 'text-left');
                     }
                     
-                    // Köşe sınıflandırması
-                    if (isLastRow) {
-                        if (tdIndex === 0) tdClass += ' rounded-bl-lg';
-                        if (tdIndex === visibleColumns.length - 1) tdClass += ' rounded-br-lg';
-                    }
-
+                    // Hücrenin Değerini Al ve Formatla
                     let cellValue = r[col.key];
-                    
-                    // Sayısal değerleri formatla
                     if (typeof cellValue === 'number' && !isNaN(cellValue)) {
                          if (col.key.includes('Ay Yeter')) {
                             cellValue = cellValue.toFixed(1).replace('.', ',');
@@ -353,6 +400,35 @@
                         }
                     } else if (cellValue === null || cellValue === undefined) {
                         cellValue = '';
+                    }
+
+
+                    // ******************************************************************
+                    // GÜNCELLENMİŞ ÖZELLİK: SADECE 'KAÇ AY YETER' SÜTUNU İÇİN RENK VE BOLD AYARLARI
+                    // ******************************************************************
+                    if (col.key === 'Kaç Ay Yeter') {
+                        const ayYeterlilik = r['Kaç Ay Yeter'];
+                        let textClass = 'text-gray-900'; // Varsayılan
+                        
+                        if (ayYeterlilik < criticalThreshold) {
+                            // KRİTİK EŞİK (Kırmızı ve Kalın)
+                            textClass = 'font-bold text-red-600';
+                        } else if (ayYeterlilik < warningThreshold) {
+                            // UYARI EŞİĞİ (Turuncu/Kahverengi ve Kalın)
+                            textClass = 'font-bold text-yellow-700';
+                        } else {
+                            // YETERLİ (Yeşil ve Kalın)
+                            textClass = 'font-bold text-green-600';
+                        }
+                        
+                        // Sadece 'Kaç Ay Yeter' hücresine textClass'ı ekle
+                        tdClass += ' ' + textClass;
+                    } 
+                    // ******************************************************************
+
+                    if (isLastRow) {
+                        if (tdIndex === 0) tdClass += ' rounded-bl-lg';
+                        if (tdIndex === visibleColumns.length - 1) tdClass += ' rounded-br-lg';
                     }
 
                     html += `<td class="${tdClass}">${cellValue}</td>`;
@@ -364,7 +440,7 @@
             html += '</tbody></table>';
             container.innerHTML = html;
 
-            // ... (Sayfalama kodları aynı kalır) ...
+            // Sayfalama kodları
             const paginationDiv = document.getElementById('pagination');
             if (parseInt(document.getElementById('rowsPerPage').value) === 0) {
                 paginationDiv.innerHTML = '';
@@ -377,32 +453,64 @@
             const btnInactive = 'bg-custom-blue hover:bg-custom-darkblue';
             const btnDisabled = 'bg-gray-400 cursor-not-allowed';
 
+            const totalPageCount = totalPages; 
             const firstBtnClass = currentPage === 1 ? btnDisabled : btnInactive;
             const prevBtnClass = currentPage === 1 ? btnDisabled : btnInactive;
-            const lastBtnClass = currentPage === totalPages ? btnDisabled : btnInactive;
-            const nextBtnClass = currentPage === totalPages ? btnDisabled : btnInactive;
+            const lastBtnClass = currentPage === totalPageCount ? btnDisabled : btnInactive;
+            const nextBtnClass = currentPage === totalPageCount ? btnDisabled : btnInactive;
 
             paginationHtml += `<button onclick="goPage(1)" class="${btnBase} ${firstBtnClass}" ${currentPage === 1 ? 'disabled' : ''}>İlk</button>`;
             paginationHtml += `<button onclick="goPage(${currentPage - 1})" class="${btnBase} ${prevBtnClass}" ${currentPage === 1 ? 'disabled' : ''}>Önceki</button>`;
 
-            for (let i = 1; i <= totalPages; i++) {
+            for (let i = 1; i <= totalPageCount; i++) {
                 const pageClass = i === currentPage ? btnActive : btnInactive;
                 paginationHtml += `<button onclick="goPage(${i})" class="${btnBase} ${pageClass}">${i}</button>`;
             }
 
-            paginationHtml += `<button onclick="goPage(${currentPage + 1})" class="${btnBase} ${nextBtnClass}" ${currentPage === totalPages ? 'disabled' : ''}>Sonraki</button>`;
-            paginationHtml += `<button onclick="goPage(${totalPages})" class="${btnBase} ${lastBtnClass}" ${currentPage === totalPages ? 'disabled' : ''}>Son</button>`;
+            paginationHtml += `<button onclick="goPage(${currentPage + 1})" class="${btnBase} ${nextBtnClass}" ${currentPage === totalPageCount ? 'disabled' : ''}>Sonraki</button>`;
+            paginationHtml += `<button onclick="goPage(${totalPageCount})" class="${btnBase} ${lastBtnClass}" ${currentPage === totalPageCount ? 'disabled' : ''}>Son</button>`;
 
             paginationDiv.innerHTML = '<div class="pagination flex justify-center">' + paginationHtml + '</div>';
         }
-
 
         function goPage(page){ 
             currentPage=page; 
             applyFilters(); 
         }
         
-        // YARDIMCI FONKSİYON: Günü Ay ve Gün olarak formatlar
+        function sortTable(col){
+            const asc = currentSort.column===col?!currentSort.asc:true;
+            currentSort={column:col,asc};
+            allRows.sort((a,b)=>{
+                const valA=a[col]||0,valB=b[col]||0;
+                return typeof valA==='string'? (asc? valA.localeCompare(valB): valB.localeCompare(a[col])) : (asc? valA-valB: valB-valA);
+            });
+            applyFilters();
+        }
+
+        function applyFilters(){
+            const search=document.getElementById('searchInput').value.toLowerCase();
+            const filter=document.getElementById('filterSelect').value;
+            
+            let filtered=allRows.filter(r=>r['Malzeme Adı'].toLowerCase().includes(search));
+            
+            if(filter!=='hepsi'){
+                filtered=filtered.filter(r=>{
+                    const ay=r['İhale Sonrası Kaç Ay Yeter']; 
+                    if(filter==='success') return ay>=warningThreshold;
+                    if(filter==='warning') return ay>=criticalThreshold && ay<warningThreshold;
+                    if(filter==='danger') return ay<criticalThreshold;
+                });
+            }
+            
+            renderTable(filtered);
+            renderCurrentChart(filtered); 
+            renderTenderChart(filtered); 
+        }
+
+        function exportPDF(){ window.print(); }
+
+        // GRAFİK VE FORMATLAMA
         function formatDaysToMonths(totalDays) {
             if (totalDays < 0) return '0 Gün (Tükendi)';
             const daysPerMonth = 30;
@@ -411,7 +519,7 @@
             
             let result = [];
             if (months > 0) result.push(months + ' Ay');
-            if (remainingDays > 0 || months === 0) { // 0 aysa bile günü göster
+            if (remainingDays > 0 || months === 0) {
                 result.push(remainingDays + ' Gün');
             }
             
@@ -419,14 +527,13 @@
         }
 
 
-        // GRAFİK 1: MEVCUT STOK YETERLİLİĞİ
         function renderCurrentChart(rows){
             const ctx=document.getElementById('chartCurrent').getContext('2d');
             const safeRows = [...rows]; 
             
             const critical = safeRows.sort((a,b)=>a['Kaç Ay Yeter']-b['Kaç Ay Yeter']).slice(0,5);
             const labels = critical.map(r=>r['Malzeme Adı']);
-            const values = critical.map(r=>r['Kaç Ay Yeter']*30); // Gün olarak tutulmaya devam ediliyor
+            const values = critical.map(r=>r['Kaç Ay Yeter']*30); 
 
             if(chartCurrentInstance) chartCurrentInstance.destroy();
             
@@ -466,7 +573,6 @@
             });
         }
 
-        // GRAFİK 2: İHALE SONRASI STOK YETERLİLİĞİ
         function renderTenderChart(rows){
             const ctx=document.getElementById('chartAfterTender').getContext('2d');
             const safeRows = [...rows]; 
@@ -516,37 +622,6 @@
             });
         }
 
-        function sortTable(col){
-            const asc = currentSort.column===col?!currentSort.asc:true;
-            currentSort={column:col,asc};
-            allRows.sort((a,b)=>{
-                const valA=a[col]||0,valB=b[col]||0;
-                return typeof valA==='string'? (asc? valA.localeCompare(valB): valB.localeCompare(valA)) : (asc? valA-valB: valB-a[col]);
-            });
-            applyFilters();
-        }
-
-        function applyFilters(){
-            const search=document.getElementById('searchInput').value.toLowerCase();
-            const filter=document.getElementById('filterSelect').value;
-            
-            let filtered=allRows.filter(r=>r['Malzeme Adı'].toLowerCase().includes(search));
-            
-            if(filter!=='hepsi'){
-                filtered=filtered.filter(r=>{
-                    const ay=r['İhale Sonrası Kaç Ay Yeter']; 
-                    if(filter==='success') return ay>=8;
-                    if(filter==='warning') return ay>=6 && ay<8;
-                    if(filter==='danger') return ay<6;
-                });
-            }
-            
-            renderTable(filtered);
-            renderCurrentChart(filtered); 
-            renderTenderChart(filtered); 
-        }
-
-        function exportPDF(){ window.print(); }
     </script>
 </body>
 </html>
