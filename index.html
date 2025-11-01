@@ -57,14 +57,19 @@
         @media print {
             .mb-6 { margin-bottom: 0 !important; }  
             #chartsContainer, #chartsContainer2 { padding: 0 !important; }
-            .controls, .legend, #settingsCanvas, .ts-control, .chart-toggle-button {  /* chart-toggle-button eklendi */
+            .controls, .legend, #settingsCanvas, .ts-control, .chart-toggle-button, .summary-toggle-button { 
                 display: none !important; 
             }
             h1 { margin-top: 0; }
             #tableContainer { box-shadow: none; padding: 0; }
             
-            /* Gizlenmiş grafik kaplarını yazdırma anında da gizler */
+            /* Gizlenmiş grafik/özet kaplarını yazdırma anında da gizler */
             .hidden-for-print {
+                display: none !important;
+            }
+
+            /* Özet kartlarını yazdırma için görünür yap ama gölgesiz (Bu kural artık gerekmez, parent'a taşıdık) */
+             #summaryWrapper.hidden-for-print {
                 display: none !important;
             }
         }
@@ -127,6 +132,16 @@
                         <label for="warningThreshold" class="text-sm font-medium text-gray-700">Uyarı (<):</label>
                         <input type="number" id="warningThreshold" value="8" min="1" onchange="updateThresholds()" class="w-12 p-1 border border-yellow-300 rounded text-center text-sm">
                     </div>
+                </div>
+            </div>
+            
+            <div class="border border-gray-300 rounded-2xl p-3 bg-gray-50 flex-1 min-w-[200px]">
+                <p class="font-semibold text-gray-700 block mb-2">Ek Filtreler:</p>
+                <div class="flex items-center">
+                    <input type="checkbox" id="hideZeroConsumption" 
+                           onchange="updateZeroConsumptionFilter(this.checked)" 
+                           class="h-4 w-4 text-custom-blue border-gray-300 focus:ring-custom-blue">
+                    <label for="hideZeroConsumption" class="ml-2 text-sm text-gray-700 font-bold">Yıllık Tüketimi Sıfır Olanları Gizle</label>
                 </div>
             </div>
             
@@ -222,8 +237,17 @@
             </div>
         </div>
     </div>
+    <div class="mb-6 border-b border-gray-300">
+        <div onclick="toggleSummarySection()" class="flex items-center justify-between p-2 bg-gray-200 hover:bg-gray-300 cursor-pointer rounded-t-2xl summary-toggle-button">
+            <h3 class="text-xl font-bold text-gray-800">📋 Genel Stok ve Maliyet Özeti</h3>
+            <svg id="summaryContainerArrow" class="w-6 h-6 text-gray-600 transition-transform duration-300 transform rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+        </div>
+        <div id="summaryContainer" class="flex flex-wrap justify-around gap-4 p-4 bg-white rounded-b-2xl shadow-md transition-all duration-300">
+            </div>
+    </div>
     <div class="text-center mb-4 legend flex justify-center gap-4" id="legendContainer"></div>
-
     <div id="tableContainer" class="bg-white p-4 rounded-2xl shadow-md table-responsive overflow-hidden"></div>
     
     <script>
@@ -236,6 +260,7 @@
         let rowColorBasis = 'ihaleSonrasi';  
         let currentFilter = 'hepsi';  
         let materialTomSelect = null; 
+        let hideZeroConsumption = false; // Yeni filtre durumu
         
         let categorySelection = {}; 
 
@@ -266,7 +291,7 @@
             { key: 'Birim Fiyat', label: 'Birim Fiyat (₺)' }, 
             { key: 'Mevcut Stok Değeri', label: 'Mevcut Stok Değeri (₺)' }, 
             { key: 'Yıllık Tüketim', label: 'Yıllık Tüketim (Miktar)' }, 
-            { key: 'Ambara teslim edilecek', label: 'Ambara Teslim Edilecek (Miktar)' }, // BAŞLIK GÜNCELLENDİ
+            { key: 'Ambara teslim edilecek', label: 'Ambara Teslim Edilecek (Miktar)' }, 
             { key: 'Ambara Teslim Edilecek Maliyeti', label: 'Teslim Edilecek Maliyeti (₺)' }, 
             { key: 'Kaç Ay Yeter', label: 'Mevcut Stok Kaç Ay Devam Eder' }, 
             { key: 'İhale Sonrası Kaç Ay Yeter', label: 'Teslim Sonrası Kaç Ay Devam Eder' }, 
@@ -280,7 +305,7 @@
             'Ambara Teslim Edilecek Maliyeti'
         ];
         
-        // Grafik renk paleti (Pasta grafikleri için)
+        // Grafik renk paleti (Çubuk grafikleri için)
         const chartColors = [
             '#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', 
             '#9333ea', '#db2777', '#06b6d4', '#f472b6', '#a3a3a3'
@@ -289,27 +314,41 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadThresholds();  
             initializeColumnSettings();
-            renderLegend();  
+            renderLegend(); 
             
             initializeMaterialMultiSelect();
 
             applyFilters();  
         });
 
-        // GRAFİK GİZLEME/GÖSTERME FONKSİYONU
+        // GRAFİK VE ÖZET GİZLEME/GÖSTERME FONKSİYONLARI
         function toggleChartSection(containerId) {
             const container = document.getElementById(containerId);
             const arrow = document.getElementById(containerId + 'Arrow');
             
-            // Gizleme/gösterme işlemleri
-            if (container.classList.contains('hidden-for-print')) {
-                // Göster
+            if (container.classList.contains('hidden-for-print') || container.style.display === 'none') {
                 container.classList.remove('hidden-for-print');
                 container.style.display = 'flex'; 
                 arrow.classList.add('rotate-180');
                 arrow.classList.remove('rotate-0');
             } else {
-                // Gizle
+                container.classList.add('hidden-for-print');
+                container.style.display = 'none'; 
+                arrow.classList.remove('rotate-180');
+                arrow.classList.add('rotate-0');
+            }
+        }
+        
+        function toggleSummarySection() {
+            const container = document.getElementById('summaryContainer');
+            const arrow = document.getElementById('summaryContainerArrow');
+            
+            if (container.classList.contains('hidden-for-print') || container.style.display === 'none') {
+                container.classList.remove('hidden-for-print');
+                container.style.display = 'flex'; 
+                arrow.classList.add('rotate-180');
+                arrow.classList.remove('rotate-0');
+            } else {
                 container.classList.add('hidden-for-print');
                 container.style.display = 'none'; 
                 arrow.classList.remove('rotate-180');
@@ -321,6 +360,12 @@
         // Para birimi formatlayıcı (2 ondalık basamak, ₺ simgesi)
         function formatCurrency(value) {
             if (typeof value !== 'number' || isNaN(value)) return '';
+            // TL simgesini kaldırıp sadece sayısal değeri döndür (Binlik ayraçlı)
+            return value.toLocaleString('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        }
+        // Para birimi formatlayıcı (₺ simgeli, 2 ondalık basamak)
+        function formatCurrencySymbol(value) {
+            if (typeof value !== 'number' || isNaN(value)) return '';
             return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
         
@@ -331,7 +376,7 @@
         }
 
 
-        // Diğer toggle ve update fonksiyonları (Değişmedi)
+        // Diğer toggle ve update fonksiyonları
         function toggleAllCategories(shouldSelect) {
             const checkboxes = document.querySelectorAll('#categoryCheckboxes input[type="checkbox"]');
             
@@ -365,6 +410,11 @@
         function updateCategorySelection(isSelected, categoryKey) {
             categorySelection[categoryKey] = isSelected;
             applyFilters();
+        }
+        
+        function updateZeroConsumptionFilter(isChecked) {
+             hideZeroConsumption = isChecked;
+             applyFilters();
         }
 
         function setRowColorBasis(basis) {
@@ -536,6 +586,7 @@
             document.getElementById('warningThreshold').value = warningThreshold;
         }
 
+        // FİLTRE BUTONLARINI RENDER EDER
         function renderLegend() {
             const container = document.getElementById('legendContainer');
             
@@ -683,7 +734,7 @@
                     
                     // Maliyet ve Birim Fiyatı formatla (₺ simgesi eklenir)
                     if (currencyKeys.includes(col.key)) {
-                        cellValue = formatCurrency(r[col.key]); 
+                        cellValue = formatCurrencySymbol(r[col.key]); 
                     } 
                     else if (col.key.includes('Ay Yeter')) {
                         if (typeof cellValue === 'number' && !isNaN(cellValue)) {
@@ -751,6 +802,59 @@
             applyFilters();
         }
 
+        function calculateSummary(rows) {
+            let totalCurrentStock = 0;
+            let totalTenderQuantity = 0;
+            let totalCurrentCost = 0;
+            let totalTenderCost = 0;
+
+            rows.forEach(r => {
+                totalCurrentStock += r['Mevcut Stok'];
+                totalTenderQuantity += r['Ambara teslim edilecek'];
+                totalCurrentCost += r['Mevcut Stok Değeri'];
+                totalTenderCost += r['Ambara Teslim Edilecek Maliyeti'];
+            });
+
+            return {
+                totalCurrentStock,
+                totalTenderQuantity,
+                totalCurrentCost,
+                totalTenderCost,
+                totalItemCount: rows.length
+            };
+        }
+
+        function renderSummary(summaryData) {
+            const container = document.getElementById('summaryContainer');
+
+            if (summaryData.totalItemCount === 0) {
+                 container.innerHTML = '<p class="text-center text-gray-500">Özet: Filtreleme sonucu malzeme bulunamadı.</p>';
+                 return;
+            }
+
+            const totalStok = summaryData.totalCurrentStock + summaryData.totalTenderQuantity;
+            const totalMaliyet = summaryData.totalCurrentCost + summaryData.totalTenderCost;
+
+            const cards = [
+                { title: "Filtrelenen Malzeme Çeşidi", value: formatNumber(summaryData.totalItemCount), icon: '📦' },
+                { title: "Mevcut Stok Toplam Miktar", value: formatNumber(summaryData.totalCurrentStock), icon: '✅' },
+                { title: "Teslim Edilecek Toplam Miktar", value: formatNumber(summaryData.totalTenderQuantity), icon: '🚛' },
+                { title: "Genel Toplam Miktar (Stok + Teslim)", value: formatNumber(totalStok), icon: '📊' },
+                { title: "Mevcut Stok Toplam Değeri", value: formatCurrencySymbol(summaryData.totalCurrentCost), icon: '💰', color: 'text-custom-blue' },
+                { title: "Teslim Edilecek Toplam Maliyet", value: formatCurrencySymbol(summaryData.totalTenderCost), icon: '💸', color: 'text-orange-500' },
+                { title: "Genel Toplam Maliyet (₺)", value: formatCurrencySymbol(totalMaliyet), icon: '⭐', color: 'text-green-600' }
+            ];
+
+            let html = cards.map(card => `
+                <div class="bg-gray-50 p-4 border border-gray-200 rounded-lg shadow-inner flex-1 min-w-[200px] max-w-[calc(50%-8px)] md:max-w-[calc(25%-8px)]">
+                    <p class="text-sm font-medium text-gray-500 truncate">${card.icon} ${card.title}</p>
+                    <p class="mt-1 text-2xl font-extrabold ${card.color || 'text-gray-900'}">${card.value}</p>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
         function applyFilters(){
             const selectedMaterials = materialTomSelect ? materialTomSelect.getValue() : [];
             const filter = currentFilter;  
@@ -769,7 +873,13 @@
                 filtered = filtered.filter(r => selectedMaterials.includes(r['Malzeme Adı']));
             }
 
-            // 3. Stok Yeterliliği durumuna göre filtreleme
+            // 3. Yıllık Tüketim sıfır filtresi
+            if (hideZeroConsumption) {
+                 filtered = filtered.filter(r => r['Yıllık Tüketim'] > 0);
+            }
+
+
+            // 4. Stok Yeterliliği durumuna göre filtreleme
             const filterBasis = (rowColorBasis === 'mevcutStok') ? 'Kaç Ay Yeter' : 'İhale Sonrası Kaç Ay Yeter';
 
             if(filter !== 'hepsi'){
@@ -781,14 +891,19 @@
                 });
             }
             
+            // ÖZET VE GRAFİK VERİLERİNİ HESAPLA VE GÖRÜNTÜLE
+            const summaryData = calculateSummary(filtered);
+            renderSummary(summaryData); 
+
             renderTable(filtered);
             renderCurrentChart(filtered);  
             renderTenderChart(filtered);  
+            renderLegend(); 
 
-            // YENİ GRAFİKLERİ ÇAĞIR
+            // GÜNCELLENMİŞ MALİYET HESAPLAMASI
             const costData = calculateCategoryCosts(filtered);
-            renderCurrentCostChart(costData);
-            renderTenderCostChart(costData);
+            renderCurrentCostChart(costData.current);
+            renderTenderCostChart(costData.tender);
         }
 
         function exportPDF(){ window.print(); }
@@ -808,7 +923,7 @@
             return result.join(' ');
         }
         
-        // MALİYET HESAPLAMA FONKSİYONU
+        // MALİYET HESAPLAMA VE İKİLİ SIRALAMA FONKSİYONU
         function calculateCategoryCosts(rows) {
             const costs = {};
             let totalCurrentCost = 0;
@@ -830,16 +945,33 @@
                 totalTenderCost += tenderCost;
             });
 
+            const allCategories = Object.keys(costs).map(key => ({
+                category: key,
+                current: costs[key].current,
+                tender: costs[key].tender
+            }));
+            
+            // 1. Mevcut Stok Maliyetine göre sıralama (Mevcut Stok Grafiği için)
+            const sortedCurrent = [...allCategories].sort((a, b) => b.current - a.current).slice(0, 10);
+            
+            // 2. Teslim Edilecek Maliyetine göre bağımsız sıralama (Teslim Edilecek Maliyet Grafiği için)
+            const sortedTender = [...allCategories].sort((a, b) => b.tender - a.tender).slice(0, 10);
+
             return {
-                labels: Object.keys(costs).sort((a, b) => a.localeCompare(b, 'tr', { sensitivity: 'base' })),
-                currentCosts: Object.values(costs).map(c => c.current),
-                tenderCosts: Object.values(costs).map(c => c.tender),
-                totalCurrentCost: totalCurrentCost,
-                totalTenderCost: totalTenderCost
+                current: {
+                    labels: sortedCurrent.map(c => c.category),
+                    costs: sortedCurrent.map(c => c.current),
+                    totalCost: totalCurrentCost,
+                },
+                tender: {
+                    labels: sortedTender.map(c => c.category),
+                    costs: sortedTender.map(c => c.tender),
+                    totalCost: totalTenderCost,
+                }
             };
         }
 
-        // 1. STOK YETERLİLİĞİ ÇUBUK GRAFİKLERİ
+        // 1. STOK YETERLİLİĞİ ÇUBUK GRAFİKLERİ (DEĞİŞMEDİ)
         function renderCurrentChart(rows){
             const ctx=document.getElementById('chartCurrent').getContext('2d');
             const safeRows = [...rows];  
@@ -935,118 +1067,110 @@
             });
         }
         
-        // 2. KATEGORİK MALİYET PASTA GRAFİKLERİ
-        
+        // 2. KATEGORİK MALİYET ÇUBUK GRAFİĞİ (MEVCUT STOK)
         function renderCurrentCostChart(costData) {
             const ctx = document.getElementById('chartCurrentCost').getContext('2d');
             
             if (chartCurrentCostInstance) chartCurrentCostInstance.destroy();
 
             chartCurrentCostInstance = new Chart(ctx, {
-                type: 'doughnut',
+                type: 'bar', 
                 data: {
                     labels: costData.labels,
                     datasets: [{
-                        label: 'Mevcut Stok Maliyeti',
-                        data: costData.currentCosts,
-                        backgroundColor: costData.labels.map((_, i) => chartColors[i % chartColors.length]),
-                        hoverOffset: 15,
-                        borderWidth: 1
+                        label: 'Mevcut Stok Değeri',
+                        data: costData.costs,
+                        backgroundColor: chartColors[4], 
+                        borderColor: chartColors[4],
+                        borderWidth: 1,
                     }]
                 },
                 options: {
+                    indexAxis: 'y', 
                     responsive: true,
                     maintainAspectRatio: false,
+                     layout: {
+                        padding: { left: 0, right: 80 }  
+                    },
                     plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 20,
-                                padding: 15
-                            }
-                        },
+                        legend: { display: false },
                         title: {
                             display: true,
-                            text: `Mevcut Stok Değeri Dağılımı (Toplam: ${formatCurrency(costData.totalCurrentCost)})`,
+                            text: `En Yüksek 10 Kategorinin Mevcut Stok Değeri (Toplam: ${formatCurrencySymbol(costData.totalCost)})`,
                             font: { size: 16, weight: 'bold' },
                             color: '#333333'
                         },
                         datalabels: {
-                            formatter: (value, context) => {
-                                const total = costData.currentCosts.reduce((acc, cost) => acc + cost, 0);
-                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                
-                                // Yüzde ve parasal değeri göster
-                                if (percentage > 5) { // Sadece büyük dilimlerde etiketi göster
-                                    return `${percentage}% (${formatCurrency(value).replace('₺', '')})`;
-                                }
-                                return '';
+                            anchor: 'end',
+                            align: 'right',
+                            formatter: (value) => {
+                                return formatCurrency(value) + ' ₺'; 
                             },
-                            color: '#fff',
-                            textShadow: '0 0 5px #000',
+                            color: '#333',
                             font: {
                                 weight: 'bold',
-                                size: 11
+                                size: 12
                             }
                         }
+                    },
+                    scales: {
+                        x: { beginAtZero: true },
+                        y: { reverse: true } 
                     }
                 },
                 plugins: [ChartDataLabels]
             });
         }
 
+        // 2. KATEGORİK MALİYET ÇUBUK GRAFİĞİ (İHALE SONRASI)
         function renderTenderCostChart(costData) {
             const ctx = document.getElementById('chartTenderCost').getContext('2d');
 
             if (chartTenderCostInstance) chartTenderCostInstance.destroy();
 
             chartTenderCostInstance = new Chart(ctx, {
-                type: 'doughnut',
+                type: 'bar', 
                 data: {
-                    labels: costData.labels,
+                    labels: costData.labels, // Kendi sıralaması kullanılır
                     datasets: [{
                         label: 'Ambara Teslim Edilecek Maliyeti',
-                        data: costData.tenderCosts,
-                        backgroundColor: costData.labels.map((_, i) => chartColors[i % chartColors.length]),
-                        hoverOffset: 15,
+                        data: costData.costs,
+                        backgroundColor: chartColors[2], 
+                        borderColor: chartColors[2],
                         borderWidth: 1
                     }]
                 },
                 options: {
+                    indexAxis: 'y', 
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: { left: 0, right: 80 }  
+                    },
                     plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 20,
-                                padding: 15
-                            }
-                        },
+                        legend: { display: false },
                         title: {
                             display: true,
-                            text: `Ambara Teslim Edilecek Stok Maliyeti Dağılımı (Toplam: ${formatCurrency(costData.totalTenderCost)})`,
+                            text: `En Yüksek 10 Kategorinin Teslim Edilecek Stok Maliyeti (Toplam: ${formatCurrencySymbol(costData.totalCost)})`,
                             font: { size: 16, weight: 'bold' },
                             color: '#333333'
                         },
                         datalabels: {
-                            formatter: (value, context) => {
-                                const total = costData.tenderCosts.reduce((acc, cost) => acc + cost, 0);
-                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                                
-                                // Yüzde ve parasal değeri göster
-                                if (percentage > 5) { // Sadece büyük dilimlerde etiketi göster
-                                    return `${percentage}% (${formatCurrency(value).replace('₺', '')})`;
-                                }
-                                return '';
+                            anchor: 'end',
+                            align: 'right',
+                            formatter: (value) => {
+                                return formatCurrency(value) + ' ₺'; 
                             },
-                            color: '#fff',
-                            textShadow: '0 0 5px #000',
+                            color: '#333',
                             font: {
                                 weight: 'bold',
-                                size: 11
+                                size: 12
                             }
                         }
+                    },
+                    scales: {
+                        x: { beginAtZero: true },
+                        y: { reverse: true } // Kendi sıralaması olduğu için doğru görünüm sağlar
                     }
                 },
                 plugins: [ChartDataLabels]
