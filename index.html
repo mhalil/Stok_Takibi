@@ -57,9 +57,18 @@
         @media print {
             .mb-6 { margin-bottom: 0 !important; }  
             #chartsContainer, #chartsContainer2 { padding: 0 !important; }
-            .controls, .legend, #settingsCanvas, .ts-control, .chart-toggle-button, .summary-toggle-button { 
+            
+            /* Kontrol ve Filtreleme Bileşenlerini Gizle */
+            .controls, 
+            .legend, 
+            #settingsCanvas, 
+            .ts-control, 
+            .chart-toggle-button, 
+            .summary-toggle-button,
+            #legendContainer { /* MALZEME ARAMA ÇUBUĞU VE FİLTRELER GİZLENDİ */
                 display: none !important; 
             }
+            
             h1 { margin-top: 0; }
             #tableContainer { box-shadow: none; padding: 0; }
             
@@ -86,6 +95,11 @@
         .ts-wrapper.multi .ts-control > div {
             @apply bg-custom-blue text-white rounded-md text-sm py-1 px-2;
         }
+        
+        /* LEGEND/FİLTRE BÖLÜMÜ YENİ STİLİ */
+        #legendContainer {
+            @apply flex flex-wrap justify-center items-center gap-3 p-4 bg-white rounded-2xl shadow-md;
+        }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -106,16 +120,53 @@
         <input type="file" id="csvFile" accept=".csv" class="p-2 border border-gray-300 rounded-lg">
         <button onclick="loadCSV()" class="bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150">Yükle</button>
         
-        <div class="flex flex-col gap-2 w-full md:w-auto md:min-w-[300px]">
-             <label for="materialMultiSelect" class="text-sm font-medium text-gray-700 hidden md:block">Malzemeye Göre Çoklu Filtre:</label>
-             <select id="materialMultiSelect" multiple class="w-full"></select>
-        </div>
-        
-        <button onclick="clearMaterialFilter()" class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-4 rounded-lg shadow-md transition duration-150">Malzeme Filtresini Temizle</button>
-        
         <button onclick="exportPDF()" class="bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150">PDF Olarak Dışa Aktar</button>
     </div>
+    <div class="mb-6 border-b border-gray-300">
+        <div onclick="toggleChartSection('chartsContainer')" class="flex items-center justify-between p-2 bg-gray-200 hover:bg-gray-300 cursor-pointer rounded-t-2xl chart-toggle-button">
+            <h3 class="text-xl font-bold text-gray-800">📈 Stok Yeterliliği Grafikleri (Ay Bazlı)</h3>
+            <svg id="chartsContainerArrow" class="w-6 h-6 text-gray-600 transition-transform duration-300 transform rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+        </div>
+        
+        <div id="chartsContainer" class="flex gap-4 p-4 bg-white rounded-b-2xl transition-all duration-300">
+            <div id="chartCurrentContainer" class="bg-white p-4 rounded-2xl shadow-md flex-1">
+                <canvas id="chartCurrent"></canvas>
+            </div>
+            <div id="chartAfterTenderContainer" class="bg-white p-4 rounded-2xl shadow-md flex-1">
+                <canvas id="chartAfterTender"></canvas>
+            </div>
+        </div>
+    </div>
 
+    <div class="mb-6 border-b border-gray-300">
+        <div onclick="toggleChartSection('chartsContainer2')" class="flex items-center justify-between p-2 bg-gray-200 hover:bg-gray-300 cursor-pointer rounded-t-2xl chart-toggle-button">
+            <h3 class="text-xl font-bold text-gray-800">💰 Kategorik Maliyet Dağılım Grafikleri (Parasal Bazlı)</h3>
+            <svg id="chartsContainer2Arrow" class="w-6 h-6 text-gray-600 transition-transform duration-300 transform rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+        </div>
+        
+        <div id="chartsContainer2" class="flex gap-4 p-4 bg-white rounded-b-2xl transition-all duration-300">
+            <div id="chartCurrentCostContainer" class="bg-white p-4 rounded-2xl shadow-md flex-1">
+                <canvas id="chartCurrentCost"></canvas>
+            </div>
+            <div id="chartTenderCostContainer" class="bg-white p-4 rounded-2xl shadow-md flex-1">
+                <canvas id="chartTenderCost"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="mb-6 border-b border-gray-300">
+        <div onclick="toggleSummarySection()" class="flex items-center justify-between p-2 bg-gray-200 hover:bg-gray-300 cursor-pointer rounded-t-2xl summary-toggle-button">
+            <h3 class="text-xl font-bold text-gray-800">📋 Genel Stok ve Maliyet Özeti</h3>
+            <svg id="summaryContainerArrow" class="w-6 h-6 text-gray-600 transition-transform duration-300 transform rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+        </div>
+        <div id="summaryContainer" class="flex flex-wrap justify-around gap-4 p-4 bg-white rounded-b-2xl shadow-md transition-all duration-300">
+            </div>
+    </div>
     <div id="settingsCanvas" class="mb-6 p-4 bg-white rounded-2xl shadow-md">
         <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">⚙️ Rapor Ayarları</h3>
         
@@ -132,16 +183,6 @@
                         <label for="warningThreshold" class="text-sm font-medium text-gray-700">Uyarı (<):</label>
                         <input type="number" id="warningThreshold" value="8" min="1" onchange="updateThresholds()" class="w-12 p-1 border border-yellow-300 rounded text-center text-sm">
                     </div>
-                </div>
-            </div>
-            
-            <div class="border border-gray-300 rounded-2xl p-3 bg-gray-50 flex-1 min-w-[200px]">
-                <p class="font-semibold text-gray-700 block mb-2">Ek Filtreler:</p>
-                <div class="flex items-center">
-                    <input type="checkbox" id="hideZeroConsumption" 
-                           onchange="updateZeroConsumptionFilter(this.checked)" 
-                           class="h-4 w-4 text-custom-blue border-gray-300 focus:ring-custom-blue">
-                    <label for="hideZeroConsumption" class="ml-2 text-sm text-gray-700 font-bold">Yıllık Tüketimi Sıfır Olanları Gizle</label>
                 </div>
             </div>
             
@@ -201,53 +242,19 @@
 
         </div>
     </div>
-    
-    <div class="mb-6 border-b border-gray-300">
-        <div onclick="toggleChartSection('chartsContainer')" class="flex items-center justify-between p-2 bg-gray-200 hover:bg-gray-300 cursor-pointer rounded-t-2xl chart-toggle-button">
-            <h3 class="text-xl font-bold text-gray-800">📈 Stok Yeterliliği Grafikleri (Ay Bazlı)</h3>
-            <svg id="chartsContainerArrow" class="w-6 h-6 text-gray-600 transition-transform duration-300 transform rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
+    <div id="legendContainer" class="mb-4">
+        
+        <div class="flex flex-col gap-2 w-full md:w-auto md:min-w-[300px] mb-2 md:mb-0">
+             <label for="materialMultiSelect" class="text-sm font-medium text-gray-700 hidden md:block">Malzemeye Göre Çoklu Filtre:</label>
+             <select id="materialMultiSelect" multiple class="w-full"></select>
         </div>
         
-        <div id="chartsContainer" class="flex gap-4 p-4 bg-white rounded-b-2xl transition-all duration-300">
-            <div id="chartCurrentContainer" class="bg-white p-4 rounded-2xl shadow-md flex-1">
-                <canvas id="chartCurrent"></canvas>
+        <button onclick="clearMaterialFilter()" class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-4 rounded-lg shadow-md transition duration-150">Malzeme Filtresini Temizle</button>
+        
+        <div class="flex flex-wrap justify-center items-center gap-3">
             </div>
-            <div id="chartAfterTenderContainer" class="bg-white p-4 rounded-2xl shadow-md flex-1">
-                <canvas id="chartAfterTender"></canvas>
-            </div>
-        </div>
-    </div>
 
-    <div class="mb-6 border-b border-gray-300">
-        <div onclick="toggleChartSection('chartsContainer2')" class="flex items-center justify-between p-2 bg-gray-200 hover:bg-gray-300 cursor-pointer rounded-t-2xl chart-toggle-button">
-            <h3 class="text-xl font-bold text-gray-800">💰 Kategorik Maliyet Dağılım Grafikleri (Parasal Bazlı)</h3>
-            <svg id="chartsContainer2Arrow" class="w-6 h-6 text-gray-600 transition-transform duration-300 transform rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-        </div>
-        
-        <div id="chartsContainer2" class="flex gap-4 p-4 bg-white rounded-b-2xl transition-all duration-300">
-            <div id="chartCurrentCostContainer" class="bg-white p-4 rounded-2xl shadow-md flex-1">
-                <canvas id="chartCurrentCost"></canvas>
-            </div>
-            <div id="chartTenderCostContainer" class="bg-white p-4 rounded-2xl shadow-md flex-1">
-                <canvas id="chartTenderCost"></canvas>
-            </div>
-        </div>
     </div>
-    <div class="mb-6 border-b border-gray-300">
-        <div onclick="toggleSummarySection()" class="flex items-center justify-between p-2 bg-gray-200 hover:bg-gray-300 cursor-pointer rounded-t-2xl summary-toggle-button">
-            <h3 class="text-xl font-bold text-gray-800">📋 Genel Stok ve Maliyet Özeti</h3>
-            <svg id="summaryContainerArrow" class="w-6 h-6 text-gray-600 transition-transform duration-300 transform rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-        </div>
-        <div id="summaryContainer" class="flex flex-wrap justify-around gap-4 p-4 bg-white rounded-b-2xl shadow-md transition-all duration-300">
-            </div>
-    </div>
-    <div class="text-center mb-4 legend flex justify-center gap-4" id="legendContainer"></div>
     <div id="tableContainer" class="bg-white p-4 rounded-2xl shadow-md table-responsive overflow-hidden"></div>
     
     <script>
@@ -260,7 +267,6 @@
         let rowColorBasis = 'ihaleSonrasi';  
         let currentFilter = 'hepsi';  
         let materialTomSelect = null; 
-        let hideZeroConsumption = false; // Yeni filtre durumu
         
         let categorySelection = {}; 
 
@@ -319,6 +325,11 @@
             initializeMaterialMultiSelect();
 
             applyFilters();  
+            
+            // Grafik ve Özet bölümlerini varsayılan olarak açık tut
+            document.getElementById('chartsContainer').classList.remove('hidden-for-print');
+            document.getElementById('chartsContainer2').classList.remove('hidden-for-print');
+            document.getElementById('summaryContainer').classList.remove('hidden-for-print');
         });
 
         // GRAFİK VE ÖZET GİZLEME/GÖSTERME FONKSİYONLARI
@@ -412,11 +423,6 @@
             applyFilters();
         }
         
-        function updateZeroConsumptionFilter(isChecked) {
-             hideZeroConsumption = isChecked;
-             applyFilters();
-        }
-
         function setRowColorBasis(basis) {
             rowColorBasis = basis;
             applyFilters();
@@ -588,7 +594,7 @@
 
         // FİLTRE BUTONLARINI RENDER EDER
         function renderLegend() {
-            const container = document.getElementById('legendContainer');
+            const container = document.querySelector('#legendContainer > div:last-child');
             
             const btnClass = 'py-1 px-3 rounded-lg border border-gray-300 hover:shadow-md transition duration-150';
             const activeClass = 'font-bold shadow-lg ring-2 ring-custom-blue';  
@@ -872,14 +878,8 @@
             if (selectedMaterials.length > 0) {
                 filtered = filtered.filter(r => selectedMaterials.includes(r['Malzeme Adı']));
             }
-
-            // 3. Yıllık Tüketim sıfır filtresi
-            if (hideZeroConsumption) {
-                 filtered = filtered.filter(r => r['Yıllık Tüketim'] > 0);
-            }
-
-
-            // 4. Stok Yeterliliği durumuna göre filtreleme
+            
+            // 3. Stok Yeterliliği durumuna göre filtreleme
             const filterBasis = (rowColorBasis === 'mevcutStok') ? 'Kaç Ay Yeter' : 'İhale Sonrası Kaç Ay Yeter';
 
             if(filter !== 'hepsi'){
@@ -1095,7 +1095,6 @@
                     plugins: {
                         legend: { display: false },
                         title: {
-                            display: true,
                             text: `En Yüksek 10 Kategorinin Mevcut Stok Değeri (Toplam: ${formatCurrencySymbol(costData.totalCost)})`,
                             font: { size: 16, weight: 'bold' },
                             color: '#333333'
