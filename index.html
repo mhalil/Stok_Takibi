@@ -7,6 +7,8 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -14,9 +16,9 @@
                     colors: {
                         'custom-blue': '#2563eb',
                         'custom-darkblue': '#1e40af',
-                        'status-warning': '#fff8dc', // Mevcut uyarı rengi
-                        'status-danger': '#f8d7da',  // Mevcut kritik renk
-                        'zebra-strip': '#f3f4f6',    // Zebra Şerit rengi
+                        'status-warning': '#fff8dc', 
+                        'status-danger': '#f8d7da',  
+                        'zebra-strip': '#f3f4f6',    
                     }
                 }
             }
@@ -26,7 +28,7 @@
     <style>
         /* Grafik taşıyıcılarına sabit yükseklik verilir */
         #chartCurrentContainer, #chartAfterTenderContainer {
-            height: 350px; 
+            height: 350px;  
         }
 
         /* Tablo genişliklerini ve kaydırma çubuğunu yönetmek için */
@@ -34,41 +36,42 @@
             overflow-x: auto;
         }
         
-        /* Tüm çizgileri kaldır ve satır aralarına boşluk bırak */
+        /* Tablo stil */
         #tableContainer table {
             border-collapse: separate;
             border-spacing: 0 0.4rem; /* Dikey boşluk */
         }
         
-        /* ---------------------------------------------------------------- */
-        /* RENKLENDİRME KURALLARI */
-        /* ---------------------------------------------------------------- */
-
-        /* Özel Zebra Şerit kuralı (tek numaralı satırlara) */
+        /* Renklendirme kuralları */
         tbody tr:nth-child(odd) {
-            background-color: #f3f4f6 !important; 
+            background-color: #f3f4f6 !important;  
         }
+        #tableContainer tr.status-warning { background-color: #fff8dc !important; }  
+        #tableContainer tr.status-danger { background-color: #f8d7da !important; }  
         
-        /* Kritik Durum kuralları */
-        #tableContainer tr.status-warning { background-color: #fff8dc !important; } 
-        #tableContainer tr.status-danger { background-color: #f8d7da !important; } 
-        
-        /* YAZDIRMA (PDF) AYARLARI */
+        /* Yazdırma ayarları */
         @media print {
-            .mb-6 { margin-bottom: 0 !important; } 
+            .mb-6 { margin-bottom: 0 !important; }  
             #chartsContainer { padding: 0 !important; }
-            .controls, .legend, #settingsCanvas { 
-                display: none !important; /* Kontrol elemanları, efsane ve ayarlar gizlenir. */
+            .controls, .legend, #settingsCanvas, .ts-control {  /* ts-control Tom Select arayüzü */
+                display: none !important; 
             }
             h1 { margin-top: 0; }
             #tableContainer { box-shadow: none; padding: 0; }
         }
 
-        /* Sütun Ayarları Menüsü İçin Özel CSS */
+        /* Sütun ve Kategori Ayarları Menüsü İçin Özel CSS */
         .dropdown-menu {
             z-index: 10;
         }
-        
+
+        /* Tom Select için özel stil ayarlamaları (Tailwind'e uyum) */
+        .ts-control {
+            @apply p-2 border border-gray-300 rounded-lg shadow-sm w-full md:min-w-[300px] bg-white;
+        }
+        .ts-wrapper.multi .ts-control > div {
+            @apply bg-custom-blue text-white rounded-md text-sm py-1 px-2;
+        }
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -82,17 +85,19 @@
     <input type="text" id="reportInfo" 
             placeholder="Rapor tarihini, versiyonunu veya ek notları buraya girin..." 
             class="block w-3/4 mx-auto text-center border-b border-gray-400 focus:outline-none focus:border-custom-blue p-1 mb-6 
-                        text-lg font-bold text-gray-900 bg-transparent"
+                         text-lg font-bold text-gray-900 bg-transparent"
             value="">
     
     <div class="flex flex-wrap justify-center items-center gap-4 mb-6 p-4 bg-white rounded-2xl shadow-md controls">
         <input type="file" id="csvFile" accept=".csv" class="p-2 border border-gray-300 rounded-lg">
         <button onclick="loadCSV()" class="bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150">Yükle</button>
         
-        <div class="flex gap-2">
-            <input type="text" id="searchInput" placeholder="Malzeme adına göre ara..." onkeyup="applyFilters()" class="p-2 border border-gray-300 rounded-lg">
-            <button onclick="clearSearch()" class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-4 rounded-lg shadow-md transition duration-150">Temizle</button>
+        <div class="flex flex-col gap-2 w-full md:w-auto md:min-w-[300px]">
+             <label for="materialMultiSelect" class="text-sm font-medium text-gray-700 hidden md:block">Malzemeye Göre Çoklu Filtre:</label>
+             <select id="materialMultiSelect" multiple class="w-full"></select>
         </div>
+        
+        <button onclick="clearMaterialFilter()" class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-4 rounded-lg shadow-md transition duration-150">Malzeme Filtresini Temizle</button>
         
         <button onclick="exportPDF()" class="bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150">PDF Olarak Dışa Aktar</button>
     </div>
@@ -135,12 +140,34 @@
             </div>
 
             <div class="relative inline-block text-left border border-gray-300 rounded-2xl p-3 bg-gray-50 flex-1 min-w-[200px]">
+                <button onclick="toggleCategorySettings()" class="w-full bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150 flex items-center justify-center">
+                    ☰ Kategori Filtrelerini Yönet
+                </button>
+
+                <div id="categoryDropdown" class="dropdown-menu origin-top-right absolute left-1/2 transform -translate-x-1/2 mt-2 w-64 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden p-2 max-h-64 overflow-y-auto">
+                    <p class="text-sm font-bold text-gray-700 mb-2 border-b pb-1">Gösterilecek Kategorileri Seçin:</p>
+                    
+                    <div class="flex justify-between mb-2">
+                        <a href="#" onclick="toggleAllCategories(true); return false;" class="text-xs text-custom-blue hover:text-custom-darkblue font-semibold">Tümünü Seç</a>
+                        <a href="#" onclick="toggleAllCategories(false); return false;" class="text-xs text-red-500 hover:text-red-700 font-semibold">Tümünü Kaldır</a>
+                    </div>
+                    <div id="categoryCheckboxes" class="space-y-1">
+                        </div>
+                </div>
+            </div>
+            
+            <div class="relative inline-block text-left border border-gray-300 rounded-2xl p-3 bg-gray-50 flex-1 min-w-[200px]">
                 <button onclick="toggleColumnSettings()" class="w-full bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150 flex items-center justify-center">
                     ✓ Sütun Ayarlarını Göster/Gizle
                 </button>
 
                 <div id="columnDropdown" class="dropdown-menu origin-top-right absolute left-1/2 transform -translate-x-1/2 mt-2 w-64 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden p-2">
                     <p class="text-sm font-bold text-gray-700 mb-2 border-b pb-1">Gösterilecek Sütunları Seçin:</p>
+                    
+                    <div class="flex justify-between mb-2">
+                        <a href="#" onclick="toggleAllColumns(true); return false;" class="text-xs text-custom-blue hover:text-custom-darkblue font-semibold">Tümünü Seç</a>
+                        <a href="#" onclick="toggleAllColumns(false); return false;" class="text-xs text-red-500 hover:text-red-700 font-semibold">Tümünü Kaldır</a>
+                    </div>
                     <div id="columnCheckboxes" class="space-y-1">
                         </div>
                 </div>
@@ -169,15 +196,19 @@
         let chartCurrentInstance = null;
         let chartTenderInstance = null;
         let currentSort = { column: null, asc: true };
-        let rowColorBasis = 'ihaleSonrasi'; 
-        let currentFilter = 'hepsi'; 
+        let rowColorBasis = 'ihaleSonrasi';  
+        let currentFilter = 'hepsi';  
+        let materialTomSelect = null; 
+        
+        let categorySelection = {}; 
 
         // Eşik Değerleri
-        let criticalThreshold = 6; 
-        let warningThreshold = 8; 
+        let criticalThreshold = 6;  
+        let warningThreshold = 8;  
         
         // Sütun görünürlüğü durumu
         let columnVisibility = {
+            'Kategori': true, 
             'Malzeme Adı': true,
             'Mevcut Stok': true,
             'Yıllık Tüketim': true,
@@ -187,7 +218,9 @@
             'Açıklama': true
         };
 
+        // Sütunların gösterim sırası ve başlıkları
         const columnOrder = [
+            { key: 'Kategori', label: 'Malzeme Kategorisi' }, 
             { key: 'Malzeme Adı', label: 'Malzeme Adı' },
             { key: 'Mevcut Stok', label: 'Mevcut Stok' },
             { key: 'Yıllık Tüketim', label: 'Yıllık Tüketim' },
@@ -198,12 +231,66 @@
         ];
 
         document.addEventListener('DOMContentLoaded', () => {
-             loadThresholds(); 
-             initializeColumnSettings();
-             renderLegend(); 
-             // Yükleme sırasında filtremeyi tetikler
-             applyFilters(); 
+            loadThresholds();  
+            initializeColumnSettings();
+            renderLegend();  
+            
+            initializeMaterialMultiSelect();
+
+            applyFilters();  
         });
+
+        // YENİ FONKSİYON: Tüm kategorilerin seçim durumunu değiştirir
+        function toggleAllCategories(shouldSelect) {
+            const checkboxes = document.querySelectorAll('#categoryCheckboxes input[type="checkbox"]');
+            
+            checkboxes.forEach(checkbox => {
+                const categoryKey = checkbox.id.substring(4).replace(/-/g, ' '); // id'den kategori adını geri çıkar
+                
+                // Checkbox'ın durumunu ayarla
+                checkbox.checked = shouldSelect;
+                
+                // categorySelection nesnesini güncelle
+                categorySelection[categoryKey] = shouldSelect;
+            });
+
+            applyFilters();
+        }
+
+        // YENİ FONKSİYON: Tüm sütunların görünürlük durumunu değiştirir
+        function toggleAllColumns(shouldSelect) {
+            // Malzeme Adı sütunu sabit kalmalıdır
+            const nonFixedColumns = columnOrder.filter(col => col.key !== 'Malzeme Adı'); 
+
+            nonFixedColumns.forEach(col => {
+                const checkbox = document.getElementById(`col-${col.key.replace(/\s/g, '-')}`);
+                
+                if (checkbox) {
+                    // Checkbox'ın durumunu ayarla
+                    checkbox.checked = shouldSelect;
+                    
+                    // columnVisibility nesnesini güncelle
+                    columnVisibility[col.key] = shouldSelect;
+                }
+            });
+
+             // Malzeme Adı'nı her zaman görünür tut
+            columnVisibility['Malzeme Adı'] = true; 
+            
+            applyFilters();
+        }
+
+        // Kategori Ayarları Butonu ve Açılır Menü Kontrolü
+        function toggleCategorySettings() {
+            const dropdown = document.getElementById('categoryDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Kategori Seçimi Güncelleme
+        function updateCategorySelection(isSelected, categoryKey) {
+            categorySelection[categoryKey] = isSelected;
+            applyFilters();
+        }
 
         function setRowColorBasis(basis) {
             rowColorBasis = basis;
@@ -222,19 +309,31 @@
             const now = new Date();
             const dateString = now.toLocaleDateString('tr-TR') + ' ' + now.toLocaleTimeString('tr-TR');
             const reportInfo = document.getElementById('reportInfo');
-            reportInfo.value = dateString; 
+            reportInfo.value = dateString;  
         }
 
         function parseCSV(csvText) {
             csvText = csvText.replace(/\uFEFF/g, '').trim();
             const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+            
+            const categories = new Set(); 
+            const materialNames = new Set(); 
+
             allRows = parsed.data.map(r => {
                 const yillik = parseFloat((r['Yıllık Tüketim']||'0').replace(',','.'));
                 const stok = parseFloat((r['Mevcut Stok']||'0').replace(',','.'));
                 const ihale = parseFloat((r['İhale Miktarı']||'0').replace(',','.'));
                 const aylik = yillik/12;
+
+                const category = (r['Kategori'] || 'Tanımsız').trim(); 
+                const material = (r['Malzeme Adı']||'').trim(); 
+
+                categories.add(category); 
+                if (material) materialNames.add(material); 
+
                 return {
-                    'Malzeme Adı': (r['Malzeme Adı']||'').trim(),
+                    'Kategori': category, 
+                    'Malzeme Adı': material,
                     'Mevcut Stok': stok,
                     'Yıllık Tüketim': yillik,
                     'İhale Miktarı': ihale,
@@ -243,26 +342,92 @@
                     'Açıklama': (r['Açıklama']||'').trim()
                 };
             }).filter(r=>r['Malzeme Adı']);
+            
+            initializeCategorySettings(categories);
+            populateMaterialFilter(materialNames); 
 
             applyFilters();
         }
+        
+        // Kategori filtreleme seçeneklerini checkbox olarak doldurur
+        function initializeCategorySettings(categories) {
+            const container = document.getElementById('categoryCheckboxes');
+            let html = '';
+            
+            // Yeni kategoriler için varsayılan olarak seçili ayarla
+            Array.from(categories).forEach(cat => {
+                if (!(cat in categorySelection)) {
+                    categorySelection[cat] = true; // Varsayılan olarak tüm kategoriler seçili gelsin
+                }
+            });
 
-        // EŞİK AYARLARI
+            // Checkbox'ları oluştur
+            const sortedCategories = Array.from(categories).sort();
+            sortedCategories.forEach(cat => {
+                const isSelected = categorySelection[cat];
+                const checked = isSelected ? 'checked' : '';
+                // ID oluşturulurken boşluklar tire ile değiştirilir, filtrelemede geri alınır.
+                const id = `cat-${cat.replace(/\s/g, '-')}`; 
+
+                html += `
+                    <div class="flex items-center">
+                        <input type="checkbox" id="${id}"  
+                               ${checked}
+                               onchange="updateCategorySelection(this.checked, '${cat}')"  
+                               class="h-4 w-4 text-custom-blue border-gray-300 rounded">
+                        <label for="${id}" class="ml-2 text-sm text-gray-700">${cat}</label>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // Malzeme Tom Select'i başlatır
+        function initializeMaterialMultiSelect() {
+             materialTomSelect = new TomSelect('#materialMultiSelect', {
+                plugins: ['remove_button', 'clear_button'],
+                valueField: 'value',
+                labelField: 'text',
+                searchField: ['text'],
+                placeholder: 'Malzeme adına göre seçin veya arayın...',
+                onInitialize: function() {
+                    this.on('change', applyFilters);
+                }
+             });
+        }
+        
+        // Malzeme filtreleme seçeneklerini doldurur
+        function populateMaterialFilter(materialNames) {
+            if (!materialTomSelect) return;
+
+            materialTomSelect.clear(true);
+            materialTomSelect.clearOptions();
+
+            const options = Array.from(materialNames).sort().map(name => ({
+                value: name,
+                text: name
+            }));
+
+            materialTomSelect.addOptions(options);
+        }
+
+        // EŞİK AYARLARI (Değişmedi)
         function updateThresholds() {
             const crit = parseFloat(document.getElementById('criticalThreshold').value);
             const warn = parseFloat(document.getElementById('warningThreshold').value);
             
             if (crit >= warn) {
                 alert('Kritik Eşik (Ay) değeri, Uyarı Eşiği (Ay) değerinden küçük olmalıdır. Lütfen değerleri kontrol edin.');
-                document.getElementById('criticalThreshold').value = criticalThreshold; 
+                document.getElementById('criticalThreshold').value = criticalThreshold;  
                 return;
             }
 
             criticalThreshold = crit;
             warningThreshold = warn;
             
-            renderLegend(); 
-            applyFilters(); 
+            renderLegend();  
+            applyFilters();  
         }
         
         function loadThresholds() {
@@ -274,25 +439,25 @@
             const container = document.getElementById('legendContainer');
             
             const btnClass = 'py-1 px-3 rounded-lg border border-gray-300 hover:shadow-md transition duration-150';
-            const activeClass = 'font-bold shadow-lg ring-2 ring-custom-blue'; 
+            const activeClass = 'font-bold shadow-lg ring-2 ring-custom-blue';  
 
             const html = `
-                <button onclick="setFilterAndApply('success')" 
+                <button onclick="setFilterAndApply('success')"  
                         class="${btnClass} bg-gray-100 hover:bg-gray-200 ${currentFilter === 'success' ? activeClass : ''}">
                     Stok Yeterli (> ${warningThreshold} Ay)
                 </button>
 
-                <button onclick="setFilterAndApply('warning')" 
+                <button onclick="setFilterAndApply('warning')"  
                         class="${btnClass} bg-status-warning hover:bg-yellow-200 ${currentFilter === 'warning' ? activeClass : ''}">
                     Stok Azalıyor (${criticalThreshold} - ${warningThreshold} Ay)
                 </button>
 
-                <button onclick="setFilterAndApply('danger')" 
+                <button onclick="setFilterAndApply('danger')"  
                         class="${btnClass} bg-status-danger hover:bg-red-300 ${currentFilter === 'danger' ? activeClass : ''}">
                     Kritik Seviye (< ${criticalThreshold} Ay)
                 </button>
                 
-                <button onclick="setFilterAndApply('hepsi')" 
+                <button onclick="setFilterAndApply('hepsi')"  
                         class="${btnClass} bg-blue-200 hover:bg-blue-400 border-blue-400 ${currentFilter === 'hepsi' ? activeClass : ''}">
                     Tüm Durumlar
                 </button>
@@ -311,10 +476,10 @@
                 
                 html += `
                     <div class="flex items-center">
-                        <input type="checkbox" id="col-${col.key.replace(/\s/g, '-')}" 
-                               data-column-key="${col.key}" 
+                        <input type="checkbox" id="col-${col.key.replace(/\s/g, '-')}"  
+                               data-column-key="${col.key}"  
                                ${checked} ${disabled}
-                               onchange="updateColumnVisibility(this.checked, '${col.key}')" 
+                               onchange="updateColumnVisibility(this.checked, '${col.key}')"  
                                class="h-4 w-4 text-custom-blue border-gray-300 rounded">
                         <label for="col-${col.key.replace(/\s/g, '-')}" class="ml-2 text-sm text-gray-700 ${disabled ? 'opacity-50' : ''}">
                             ${col.label}
@@ -325,12 +490,12 @@
             container.innerHTML = html;
         }
         function updateColumnVisibility(isVisible, key) {
-            if (key === 'Malzeme Adı' && !isVisible) {
-                 document.getElementById(`col-${key.replace(/\s/g, '-')}`).checked = true;
-                 return;
-            }
+             if (key === 'Malzeme Adı' && !isVisible) {
+                document.getElementById(`col-${key.replace(/\s/g, '-')}`).checked = true;
+                return;
+             }
             columnVisibility[key] = isVisible;
-            applyFilters(); 
+            applyFilters();  
         }
         function toggleColumnSettings() {
             const dropdown = document.getElementById('columnDropdown');
@@ -338,14 +503,17 @@
         }
 
         // FİLTRELEME VE TABLO İŞLEMLERİ
-        function clearSearch() {
-            document.getElementById('searchInput').value = ''; 
-            applyFilters(); 
-        }
         
+        function clearMaterialFilter() {
+            if (materialTomSelect) {
+                materialTomSelect.clear();
+            }
+            applyFilters();  
+        }
+
         function setFilterAndApply(filterValue) {
-            currentFilter = filterValue; 
-            renderLegend(); 
+            currentFilter = filterValue;  
+            renderLegend();  
             applyFilters();
         }
 
@@ -356,9 +524,8 @@
                 return;
             }
 
-            const pageRows = rows; 
+            const pageRows = rows;  
 
-            // Tablo HTML oluşturma - BAŞLIKLAR (TH)
             let html = `<table class="min-w-full">
                 <thead>
                     <tr>`;
@@ -377,17 +544,15 @@
                 if (col.key === 'İhale Sonrası Kaç Ay Yeter') labelText = 'Teslim Sonrası Stok Kaç Ay Yeter';
                 
                 html += `
-                    <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer ${cornerClass}" 
+                    <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer ${cornerClass}"  
                         onclick="sortTable('${col.key}')">${labelText} ↕</th>
                 `;
             });
             
             html += `</tr></thead><tbody>`;
 
-            // Tablo HTML oluşturma - SATIRLAR (TD)
             pageRows.forEach((r, index) => {
                 
-                // SATIR RENKLENDİRME MANTIĞI 
                 let targetAy;
                 if (rowColorBasis === 'mevcutStok') {
                     targetAy = r['Kaç Ay Yeter'];
@@ -397,27 +562,25 @@
                 
                 let rowCls = 'status-success';
                 if (targetAy < criticalThreshold) {
-                    rowCls = 'status-danger'; 
+                    rowCls = 'status-danger';  
                 } else if(targetAy < warningThreshold) {
                     rowCls = 'status-warning';
                 }
                 
-                const isLastRow = index === pageRows.length - 1; 
+                const isLastRow = index === pageRows.length - 1;  
 
                 html += `<tr class="${rowCls}">`;
                 
-                // Hücreleri görünürlük ayarına göre oluştur
                 visibleColumns.forEach((col, tdIndex) => {
                     let tdClass = 'px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center';
                     
-                    if (col.key === 'Malzeme Adı' || col.key === 'Açıklama') {
-                        tdClass = 'px-6 py-4 whitespace-normal text-sm text-gray-900 ' + (col.key === 'Malzeme Adı' ? 'text-left' : 'text-left');
+                    if (col.key === 'Malzeme Adı' || col.key === 'Açıklama' || col.key === 'Kategori') { 
+                        tdClass = 'px-6 py-4 whitespace-normal text-sm text-gray-900 ' + (col.key === 'Malzeme Adı' || col.key === 'Kategori' ? 'text-left' : 'text-left');
                     }
                     
-                    // Hücrenin Değerini Al ve Formatla
                     let cellValue = r[col.key];
                     if (typeof cellValue === 'number' && !isNaN(cellValue)) {
-                         if (col.key.includes('Ay Yeter')) {
+                          if (col.key.includes('Ay Yeter')) {
                             cellValue = cellValue.toFixed(1).replace('.', ',');
                         } else {
                             cellValue = cellValue.toLocaleString('tr-TR');
@@ -427,7 +590,6 @@
                     }
 
 
-                    // YETERLİLİK SÜTUNLARI İÇİN ÖZEL RENK VE BOLD AYARLARI
                     if (col.key === 'Kaç Ay Yeter' || col.key === 'İhale Sonrası Kaç Ay Yeter') {
                         const ayYeterlilik = r[col.key];
                         let textClass = 'text-gray-900';
@@ -441,7 +603,7 @@
                         }
                         
                         tdClass += ' ' + textClass;
-                    } 
+                    }  
 
                     if (isLastRow) {
                         if (tdIndex === 0) tdClass += ' rounded-bl-lg';
@@ -469,16 +631,32 @@
         }
 
         function applyFilters(){
-            const search=document.getElementById('searchInput').value.toLowerCase();
-            const filter=currentFilter; 
+            const selectedMaterials = materialTomSelect ? materialTomSelect.getValue() : [];
+            const filter = currentFilter;  
             
-            let filtered=allRows.filter(r=>r['Malzeme Adı'].toLowerCase().includes(search));
+            // Seçili kategorileri al (Sadece 'true' olanlar)
+            const selectedCategories = Object.keys(categorySelection).filter(key => categorySelection[key]);
+
+            let filtered = allRows;
             
+            // 1. Kategoriye göre filtreleme
+            if (Object.keys(categorySelection).length > 0) {
+                 // Eğer hiç kategori seçilmemişse bile (selectedCategories.length === 0), 
+                 // bu blok çalışır ve filtered boş kalır.
+                filtered = filtered.filter(r => selectedCategories.includes(r['Kategori']));
+            }
+            
+            // 2. Malzeme Adına göre filtreleme (Çoklu Seçim)
+            if (selectedMaterials.length > 0) {
+                filtered = filtered.filter(r => selectedMaterials.includes(r['Malzeme Adı']));
+            }
+
+            // 3. Stok Yeterliliği durumuna göre filtreleme
             const filterBasis = (rowColorBasis === 'mevcutStok') ? 'Kaç Ay Yeter' : 'İhale Sonrası Kaç Ay Yeter';
 
-            if(filter!=='hepsi'){
-                filtered=filtered.filter(r=>{
-                    const ay=r[filterBasis]; 
+            if(filter !== 'hepsi'){
+                filtered = filtered.filter(r=>{
+                    const ay=r[filterBasis];  
                     if(filter==='success') return ay>=warningThreshold;
                     if(filter==='warning') return ay>=criticalThreshold && ay<warningThreshold;
                     if(filter==='danger') return ay<criticalThreshold;
@@ -486,13 +664,14 @@
             }
             
             renderTable(filtered);
-            renderCurrentChart(filtered); 
-            renderTenderChart(filtered); 
+            renderCurrentChart(filtered);  
+            renderTenderChart(filtered);  
         }
 
         function exportPDF(){ window.print(); }
 
-        // GRAFİK VE FORMATLAMA
+        // GRAFİK VE FORMATLAMA (Değişmedi)
+
         function formatDaysToMonths(totalDays) {
             if (totalDays < 0) return '0 Gün (Tükendi)';
             const daysPerMonth = 30;
@@ -511,42 +690,42 @@
 
         function renderCurrentChart(rows){
             const ctx=document.getElementById('chartCurrent').getContext('2d');
-            const safeRows = [...rows]; 
+            const safeRows = [...rows];  
             
             const critical = safeRows.sort((a,b)=>a['Kaç Ay Yeter']-b['Kaç Ay Yeter']).slice(0,5);
             const labels = critical.map(r=>r['Malzeme Adı']);
-            const values = critical.map(r=>r['Kaç Ay Yeter']*30); 
+            const values = critical.map(r=>r['Kaç Ay Yeter']*30);  
 
             if(chartCurrentInstance) chartCurrentInstance.destroy();
             
             chartCurrentInstance = new Chart(ctx,{
                 type:'bar',
                 data:{ labels, datasets:[{
-                    label:'Kalan Stok (Ay/Gün)', 
-                    data:values, 
-                    backgroundColor:['#ef4444','#f97316','#facc15','#22c55e','#3b82f6'] 
+                    label:'Kalan Stok (Ay/Gün)',  
+                    data:values,  
+                    backgroundColor:['#ef4444','#f97316','#facc15','#22c55e','#3b82f6']  
                 }]},
                 options:{
-                    indexAxis:'y', 
-                    responsive:true, 
-                    maintainAspectRatio: false, 
+                    indexAxis:'y',  
+                    responsive:true,  
+                    maintainAspectRatio: false,  
                     
                     layout: {
-                        padding: { left: 20, right: 80 } 
+                        padding: { left: 20, right: 80 }  
                     },
                     
                     plugins:{
                         legend:{display:false},
                         title: {
                             display: true,
-                            text: 'Kritik Seviyedeki İlk 5 Malzeme (Mevcut Stok Yeterliliği)', 
+                            text: 'Kritik Seviyedeki İlk 5 Malzeme (Mevcut Stok Yeterliliği)',  
                             font: { size: 16, weight: 'bold' },
-                            color: '#333333' 
+                            color: '#333333'  
                         },
-                        datalabels:{ 
-                            anchor:'end', 
-                            align:'right', 
-                            formatter: value=>formatDaysToMonths(value) 
+                        datalabels:{  
+                            anchor:'end',  
+                            align:'right',  
+                            formatter: value=>formatDaysToMonths(value)  
                         }
                     },
                     scales:{x:{beginAtZero:true}}
@@ -557,45 +736,45 @@
 
         function renderTenderChart(rows){
             const ctx=document.getElementById('chartAfterTender').getContext('2d');
-            const safeRows = [...rows]; 
+            const safeRows = [...rows];  
             
             const critical = safeRows.sort((a,b)=>a['İhale Sonrası Kaç Ay Yeter']-b['İhale Sonrası Kaç Ay Yeter']).slice(0,5);
             const labels = critical.map(r=>r['Malzeme Adı']);
-            const values = critical.map(r=>r['İhale Sonrası Kaç Ay Yeter']*30); 
+            const values = critical.map(r=>r['İhale Sonrası Kaç Ay Yeter']*30);  
 
             if(chartTenderInstance) chartTenderInstance.destroy();
             
             chartTenderInstance = new Chart(ctx,{
                 type:'bar',
-                data:{ 
-                    labels, 
+                data:{  
+                    labels,  
                     datasets:[{
-                        label:'Kalan Stok (Ay/Gün)', 
-                        data:values, 
-                        backgroundColor:['#ef4444','#f97316','#facc15','#22c55e','#3b82f6'] 
+                        label:'Kalan Stok (Ay/Gün)',  
+                        data:values,  
+                        backgroundColor:['#ef4444','#f97316','#facc15','#22c55e','#3b82f6']  
                     }]
                 },
                 options:{
-                    indexAxis:'y', 
-                    responsive:true, 
-                    maintainAspectRatio: false, 
+                    indexAxis:'y',  
+                    responsive:true,  
+                    maintainAspectRatio: false,  
                     
                     layout: {
-                        padding: { left: 20, right: 80 } 
+                        padding: { left: 20, right: 80 }  
                     },
                     
                     plugins:{
                         legend:{display:false},
                         title: {
                             display: true,
-                            text: 'Kritik Seviyedeki İlk 5 Malzeme (Teslim Sonrası Yeterlilik)', 
+                            text: 'Kritik Seviyedeki İlk 5 Malzeme (Teslim Sonrası Yeterlilik)',  
                             font: { size: 16, weight: 'bold' },
-                            color: '#333333' 
+                            color: '#333333'  
                         },
-                        datalabels:{ 
-                            anchor:'end', 
-                            align:'right', 
-                            formatter: value=>formatDaysToMonths(value) 
+                        datalabels:{  
+                            anchor:'end',  
+                            align:'right',  
+                            formatter: value=>formatDaysToMonths(value)  
                         }
                     },
                     scales:{x:{beginAtZero:true}}

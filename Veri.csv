@@ -1,36 +1,36 @@
-Malzeme Adı;Mevcut Stok;Birim Fiyat;Yıllık Tüketim;İhale Miktarı;Açıklama
-Vana Buşakle;938;800;1300;0;
-Yangın Hidrantı;45;22150;500;500;Sözleşme imzalandı.
-Kapama Aparatı 3/4;250;75;1234;1500;İhale dosyası hazırlandı.
-Kapama Aparatı 1.1/4;2440;100;3217;0;
-Kolay Tamir Parçası 100 mm;155;220;600;2500;1.Parti malzemelerin muayene ve test işlemleri başlatıldı.
-Kolay Tamir Parçası 150 mm;258;230;400;1500;
-Kolay Tamir Parçası 200 mm;43;362;250;100;kabul işlemleri devam ediyor.
-Polietilen Boru 32 mm;461;15;1800;1500;1.Parti malzemelerin muayene ve test işlemleri başlatıldı.
-Polietilen Boru 40 mm;331;22;809;1000;Sözleşme imzalandı.
-Körtapa 3/4;2383;33;4301;2000;3.Parti malzemelerin muayene ve test işlemleri başlatıldı.
-Körtapa 1;5104;67;4527;0;
-Körtapa 1.1/4;2210;135;5446;0;
-Bağlantı Parçası 3/4;5000;545;7200;0;
-Bağlantı Parçası 1.1/4;3940;808;3378;0;
-Manşon Tip Bağlantı Parçası 3/4;1243;1459;5000;2000;Sözleşme imzalandı.
-Manşon Tip Bağlantı Parçası 1.1/4;2800;1299;2230;0;
-Valf 3/4;21014;384;33560;0;6.Parti malzemelerin muayene ve test işlemleri tamamlandı..
-Valf 1.1/4;8120;1210;15230;0;
-Nipel 3/4;2841;285;6200;0;
-Nipel 1.1/4;1836;395;7452;0;
-Sayaç Rakoru 20 mm;6748;185;23140;0;
-Sayaç Rakoru 25 mm;762;375;7268;0;ihale hazırlığı devam ediyor
-Sayaç Rakoru 40 mm;207;1295;909;0;
-Küresel Vanalı Kelepçe Seti DN100 x Ø32mm;3349;7000;13052;5000;4.Parti malzemelerin muayene ve test işlemleri başlatıldı.
-Küresel Vanalı Kelepçe Seti DN100 x Ø40 mm;1408;8000;6642;0;
-Küresel Vanalı Kelepçe Seti DN150 x Ø32 mm;1051;10500;4329;0;
-Küresel Vanalı Kelepçe Seti DN150 x Ø40 mm;999;12000;2726;0;
-Muayene Baca Kapağı;1506;3633;25072;12500;6.Parti malzemelerin muayene ve test işlemleri tamamlandı..
-Parsel Baca Kapağı;1210;4100;33725;5000;İhale iptal edildi
-Sayaç 20mm;1585;900;125000;260000;İhale kararı bekleniyor
-Sayaç 25 mm;305;1950;1715;0;
-Sayaç 40 mm;72;3000;449;0;
-Sayaç 50 mm;95;4200;89;0;
-Woltman Tip Sayaç DN50 mm;65;3500;113;0;
-Woltman Tip Sayaç DN100 mm;78;6200;584;1010;Sözleşme imzalandı.
+Kategori;Malzeme Adı;Mevcut Stok;Birim Fiyat;Yıllık Tüketim;İhale Miktarı;Açıklama
+Buşakle;Vana Buşakle;938;800;1300;0;
+Hidrant;Yangın Hidrantı;45;22150;500;500;Sözleşme imzalandı.
+Kapama Aparatı;Kapama Aparatı 3/4;250;75;1234;1500;İhale dosyası hazırlandı.
+Kapama Aparatı;Kapama Aparatı 1.1/4;2440;100;3217;0;
+Kolay Tamir Parçası;Kolay Tamir Parçası 100 mm;155;220;600;2500;1.Parti malzemelerin muayene ve test işlemleri başlatıldı.
+Kolay Tamir Parçası;Kolay Tamir Parçası 150 mm;258;230;400;1500;
+Kolay Tamir Parçası;Kolay Tamir Parçası 200 mm;43;362;250;100;kabul işlemleri devam ediyor.
+Polietilen Boru;Polietilen Boru 32 mm;461;15;1800;1500;1.Parti malzemelerin muayene ve test işlemleri başlatıldı.
+Polietilen Boru;Polietilen Boru 40 mm;331;22;809;1000;Sözleşme imzalandı.
+Körtapa;Körtapa 3/4;2383;33;4301;2000;3.Parti malzemelerin muayene ve test işlemleri başlatıldı.
+Körtapa;Körtapa 1;5104;67;4527;0;
+Körtapa;Körtapa 1.1/4;2210;135;5446;0;
+Bağlantı Parçası;Bağlantı Parçası 3/4;5000;545;7200;0;
+Bağlantı Parçası;Bağlantı Parçası 1.1/4;3940;808;3378;0;
+Manşon Tip Bağlantı Parçası;Manşon Tip Bağlantı Parçası 3/4;1243;1459;5000;2000;Sözleşme imzalandı.
+Manşon Tip Bağlantı Parçası;Manşon Tip Bağlantı Parçası 1.1/4;2800;1299;2230;0;
+Valf;Valf 3/4;21014;384;33560;0;6.Parti malzemelerin muayene ve test işlemleri tamamlandı..
+Valf;Valf 1.1/4;8120;1210;15230;0;
+Nipel;Nipel 3/4;2841;285;6200;0;
+Nipel;Nipel 1.1/4;1836;395;7452;0;
+Sayaç Rakoru;Sayaç Rakoru 20 mm;6748;185;23140;0;
+Sayaç Rakoru;Sayaç Rakoru 25 mm;762;375;7268;0;ihale hazırlığı devam ediyor
+Sayaç Rakoru;Sayaç Rakoru 40 mm;207;1295;909;0;
+Küresel Vanalı Kelepçe Seti;Küresel Vanalı Kelepçe Seti DN100 x Ø32mm;3349;7000;13052;5000;4.Parti malzemelerin muayene ve test işlemleri başlatıldı.
+Küresel Vanalı Kelepçe Seti;Küresel Vanalı Kelepçe Seti DN100 x Ø40 mm;1408;8000;6642;0;
+Küresel Vanalı Kelepçe Seti;Küresel Vanalı Kelepçe Seti DN150 x Ø32 mm;1051;10500;4329;0;
+Küresel Vanalı Kelepçe Seti;Küresel Vanalı Kelepçe Seti DN150 x Ø40 mm;999;12000;2726;0;
+Baca Kapağı;Muayene Baca Kapağı;1506;3633;25072;12500;6.Parti malzemelerin muayene ve test işlemleri tamamlandı..
+Baca Kapağı;Parsel Baca Kapağı;1210;4100;33725;5000;İhale iptal edildi
+Sayaç;Sayaç 20mm;1585;900;125000;260000;İhale kararı bekleniyor
+Sayaç;Sayaç 25 mm;305;1950;1715;0;
+Sayaç;Sayaç 40 mm;72;3000;449;0;
+Sayaç;Sayaç 50 mm;95;4200;89;0;
+Sayaç;Woltman Tip Sayaç DN50 mm;65;3500;113;0;
+Sayaç;Woltman Tip Sayaç DN100 mm;78;6200;584;1010;Sözleşme imzalandı.
