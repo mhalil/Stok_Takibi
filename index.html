@@ -9,6 +9,9 @@
 
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v3.x.x/dist/cdn.min.js" defer></script>
+
+
     <script>
         tailwind.config = {
             theme: {
@@ -27,7 +30,8 @@
 
     <style>
         /* Grafik taşıyıcılarına sabit yükseklik verilir */
-        #chartCurrentContainer, #chartAfterTenderContainer {
+        #chartCurrentContainer, #chartAfterTenderContainer, 
+        #chartCurrentCostContainer, #chartTenderCostContainer {
             height: 350px;  
         }
 
@@ -52,12 +56,17 @@
         /* Yazdırma ayarları */
         @media print {
             .mb-6 { margin-bottom: 0 !important; }  
-            #chartsContainer { padding: 0 !important; }
-            .controls, .legend, #settingsCanvas, .ts-control {  /* ts-control Tom Select arayüzü */
+            #chartsContainer, #chartsContainer2 { padding: 0 !important; }
+            .controls, .legend, #settingsCanvas, .ts-control, .chart-toggle-button {  /* chart-toggle-button eklendi */
                 display: none !important; 
             }
             h1 { margin-top: 0; }
             #tableContainer { box-shadow: none; padding: 0; }
+            
+            /* Gizlenmiş grafik kaplarını yazdırma anında da gizler */
+            .hidden-for-print {
+                display: none !important;
+            }
         }
 
         /* Sütun ve Kategori Ayarları Menüsü İçin Özel CSS */
@@ -178,8 +187,15 @@
         </div>
     </div>
     
-    <div class="mb-6">
-        <div id="chartsContainer" class="flex gap-4">
+    <div class="mb-6 border-b border-gray-300">
+        <div onclick="toggleChartSection('chartsContainer')" class="flex items-center justify-between p-2 bg-gray-200 hover:bg-gray-300 cursor-pointer rounded-t-2xl chart-toggle-button">
+            <h3 class="text-xl font-bold text-gray-800">📈 Stok Yeterliliği Grafikleri (Ay Bazlı)</h3>
+            <svg id="chartsContainerArrow" class="w-6 h-6 text-gray-600 transition-transform duration-300 transform rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+        </div>
+        
+        <div id="chartsContainer" class="flex gap-4 p-4 bg-white rounded-b-2xl transition-all duration-300">
             <div id="chartCurrentContainer" class="bg-white p-4 rounded-2xl shadow-md flex-1">
                 <canvas id="chartCurrent"></canvas>
             </div>
@@ -189,6 +205,23 @@
         </div>
     </div>
 
+    <div class="mb-6 border-b border-gray-300">
+        <div onclick="toggleChartSection('chartsContainer2')" class="flex items-center justify-between p-2 bg-gray-200 hover:bg-gray-300 cursor-pointer rounded-t-2xl chart-toggle-button">
+            <h3 class="text-xl font-bold text-gray-800">💰 Kategorik Maliyet Dağılım Grafikleri (Parasal Bazlı)</h3>
+            <svg id="chartsContainer2Arrow" class="w-6 h-6 text-gray-600 transition-transform duration-300 transform rotate-180" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+        </div>
+        
+        <div id="chartsContainer2" class="flex gap-4 p-4 bg-white rounded-b-2xl transition-all duration-300">
+            <div id="chartCurrentCostContainer" class="bg-white p-4 rounded-2xl shadow-md flex-1">
+                <canvas id="chartCurrentCost"></canvas>
+            </div>
+            <div id="chartTenderCostContainer" class="bg-white p-4 rounded-2xl shadow-md flex-1">
+                <canvas id="chartTenderCost"></canvas>
+            </div>
+        </div>
+    </div>
     <div class="text-center mb-4 legend flex justify-center gap-4" id="legendContainer"></div>
 
     <div id="tableContainer" class="bg-white p-4 rounded-2xl shadow-md table-responsive overflow-hidden"></div>
@@ -197,6 +230,8 @@
         let allRows = [];
         let chartCurrentInstance = null;
         let chartTenderInstance = null;
+        let chartCurrentCostInstance = null; 
+        let chartTenderCostInstance = null;  
         let currentSort = { column: null, asc: true };
         let rowColorBasis = 'ihaleSonrasi';  
         let currentFilter = 'hepsi';  
@@ -208,22 +243,22 @@
         let criticalThreshold = 6;  
         let warningThreshold = 8;  
         
-        // Sütun görünürlüğü durumu
+        // Sütun görünürlüğü durumu (İstenen Varsayılan Ayarlar)
         let columnVisibility = {
-            'Kategori': true, 
-            'Malzeme Adı': true,
-            'Mevcut Stok': true,
-            'Birim Fiyat': true, 
-            'Mevcut Stok Değeri': true, 
-            'Yıllık Tüketim': true,
+            'Kategori': false, 
+            'Malzeme Adı': true, 
+            'Mevcut Stok': true, 
+            'Birim Fiyat': false, 
+            'Mevcut Stok Değeri': false, 
+            'Yıllık Tüketim': true, 
             'Ambara teslim edilecek': true, 
-            'Ambara Teslim Edilecek Maliyeti': true, 
-            'Kaç Ay Yeter': true,
-            'İhale Sonrası Kaç Ay Yeter': true,
-            'Açıklama': true
+            'Ambara Teslim Edilecek Maliyeti': false, 
+            'Kaç Ay Yeter': true, 
+            'İhale Sonrası Kaç Ay Yeter': true, 
+            'Açıklama': true 
         };
 
-        // Sütunların gösterim sırası ve başlıkları
+        // Sütunların gösterim sırası ve BAŞLIKLARI
         const columnOrder = [
             { key: 'Kategori', label: 'Malzeme Kategorisi' }, 
             { key: 'Malzeme Adı', label: 'Malzeme Adı' },
@@ -231,10 +266,10 @@
             { key: 'Birim Fiyat', label: 'Birim Fiyat (₺)' }, 
             { key: 'Mevcut Stok Değeri', label: 'Mevcut Stok Değeri (₺)' }, 
             { key: 'Yıllık Tüketim', label: 'Yıllık Tüketim (Miktar)' }, 
-            { key: 'Ambara teslim edilecek', label: 'Ambara Teslim Edilecek' }, 
-            { key: 'Ambara Teslim Edilecek Maliyeti', label: 'Ambara Teslim Edilecek Maliyeti (₺)' }, 
-            { key: 'Kaç Ay Yeter', label: 'Mevcut Stok Kaç Ay Yeter' },
-            { key: 'İhale Sonrası Kaç Ay Yeter', label: 'Teslim Sonrası Stok Kaç Ay Yeter' },
+            { key: 'Ambara teslim edilecek', label: 'Ambara Teslim Edilecek (Miktar)' }, // BAŞLIK GÜNCELLENDİ
+            { key: 'Ambara Teslim Edilecek Maliyeti', label: 'Teslim Edilecek Maliyeti (₺)' }, 
+            { key: 'Kaç Ay Yeter', label: 'Mevcut Stok Kaç Ay Devam Eder' }, 
+            { key: 'İhale Sonrası Kaç Ay Yeter', label: 'Teslim Sonrası Kaç Ay Devam Eder' }, 
             { key: 'Açıklama', label: 'Açıklama' }
         ];
         
@@ -244,7 +279,12 @@
             'Mevcut Stok Değeri', 
             'Ambara Teslim Edilecek Maliyeti'
         ];
-
+        
+        // Grafik renk paleti (Pasta grafikleri için)
+        const chartColors = [
+            '#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', 
+            '#9333ea', '#db2777', '#06b6d4', '#f472b6', '#a3a3a3'
+        ];
 
         document.addEventListener('DOMContentLoaded', () => {
             loadThresholds();  
@@ -255,6 +295,28 @@
 
             applyFilters();  
         });
+
+        // GRAFİK GİZLEME/GÖSTERME FONKSİYONU
+        function toggleChartSection(containerId) {
+            const container = document.getElementById(containerId);
+            const arrow = document.getElementById(containerId + 'Arrow');
+            
+            // Gizleme/gösterme işlemleri
+            if (container.classList.contains('hidden-for-print')) {
+                // Göster
+                container.classList.remove('hidden-for-print');
+                container.style.display = 'flex'; 
+                arrow.classList.add('rotate-180');
+                arrow.classList.remove('rotate-0');
+            } else {
+                // Gizle
+                container.classList.add('hidden-for-print');
+                container.style.display = 'none'; 
+                arrow.classList.remove('rotate-180');
+                arrow.classList.add('rotate-0');
+            }
+        }
+
 
         // Para birimi formatlayıcı (2 ondalık basamak, ₺ simgesi)
         function formatCurrency(value) {
@@ -347,8 +409,9 @@
                 const yillik = parseValue(r['Yıllık Tüketim']);
                 const stok = parseValue(r['Mevcut Stok']);
                 
-                const ihaleMiktari = parseValue(r['İhale Miktarı']); 
-                const ihaleAnahtar = 'Ambara teslim edilecek';
+                // CSV'den 'Ambara Teslim Edilecek' başlığını kullanarak değeri okuyoruz
+                const ihaleMiktari = parseValue(r['Ambara Teslim Edilecek']); 
+                const ihaleAnahtar = 'Ambara teslim edilecek'; // Kod içi key (küçük harf)
 
                 const aylik = yillik/12;
 
@@ -384,7 +447,7 @@
             applyFilters();
         }
         
-        // KATEGORİ AYARLARI FONKSİYONU - TÜRKÇE SIRALAMA EKLENDİ
+        // KATEGORİ AYARLARI FONKSİYONU - TÜRKÇE SIRALAMA
         function initializeCategorySettings(categories) {
             const container = document.getElementById('categoryCheckboxes');
             let html = '';
@@ -721,6 +784,11 @@
             renderTable(filtered);
             renderCurrentChart(filtered);  
             renderTenderChart(filtered);  
+
+            // YENİ GRAFİKLERİ ÇAĞIR
+            const costData = calculateCategoryCosts(filtered);
+            renderCurrentCostChart(costData);
+            renderTenderCostChart(costData);
         }
 
         function exportPDF(){ window.print(); }
@@ -739,8 +807,39 @@
             
             return result.join(' ');
         }
+        
+        // MALİYET HESAPLAMA FONKSİYONU
+        function calculateCategoryCosts(rows) {
+            const costs = {};
+            let totalCurrentCost = 0;
+            let totalTenderCost = 0;
 
+            rows.forEach(r => {
+                const category = r['Kategori'];
+                const currentCost = r['Mevcut Stok Değeri'];
+                const tenderCost = r['Ambara Teslim Edilecek Maliyeti'];
 
+                if (!costs[category]) {
+                    costs[category] = { current: 0, tender: 0 };
+                }
+
+                costs[category].current += currentCost;
+                costs[category].tender += tenderCost;
+                
+                totalCurrentCost += currentCost;
+                totalTenderCost += tenderCost;
+            });
+
+            return {
+                labels: Object.keys(costs).sort((a, b) => a.localeCompare(b, 'tr', { sensitivity: 'base' })),
+                currentCosts: Object.values(costs).map(c => c.current),
+                tenderCosts: Object.values(costs).map(c => c.tender),
+                totalCurrentCost: totalCurrentCost,
+                totalTenderCost: totalTenderCost
+            };
+        }
+
+        // 1. STOK YETERLİLİĞİ ÇUBUK GRAFİKLERİ
         function renderCurrentChart(rows){
             const ctx=document.getElementById('chartCurrent').getContext('2d');
             const safeRows = [...rows];  
@@ -831,6 +930,124 @@
                         }
                     },
                     scales:{x:{beginAtZero:true}}
+                },
+                plugins: [ChartDataLabels]
+            });
+        }
+        
+        // 2. KATEGORİK MALİYET PASTA GRAFİKLERİ
+        
+        function renderCurrentCostChart(costData) {
+            const ctx = document.getElementById('chartCurrentCost').getContext('2d');
+            
+            if (chartCurrentCostInstance) chartCurrentCostInstance.destroy();
+
+            chartCurrentCostInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: costData.labels,
+                    datasets: [{
+                        label: 'Mevcut Stok Maliyeti',
+                        data: costData.currentCosts,
+                        backgroundColor: costData.labels.map((_, i) => chartColors[i % chartColors.length]),
+                        hoverOffset: 15,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 20,
+                                padding: 15
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: `Mevcut Stok Değeri Dağılımı (Toplam: ${formatCurrency(costData.totalCurrentCost)})`,
+                            font: { size: 16, weight: 'bold' },
+                            color: '#333333'
+                        },
+                        datalabels: {
+                            formatter: (value, context) => {
+                                const total = costData.currentCosts.reduce((acc, cost) => acc + cost, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                
+                                // Yüzde ve parasal değeri göster
+                                if (percentage > 5) { // Sadece büyük dilimlerde etiketi göster
+                                    return `${percentage}% (${formatCurrency(value).replace('₺', '')})`;
+                                }
+                                return '';
+                            },
+                            color: '#fff',
+                            textShadow: '0 0 5px #000',
+                            font: {
+                                weight: 'bold',
+                                size: 11
+                            }
+                        }
+                    }
+                },
+                plugins: [ChartDataLabels]
+            });
+        }
+
+        function renderTenderCostChart(costData) {
+            const ctx = document.getElementById('chartTenderCost').getContext('2d');
+
+            if (chartTenderCostInstance) chartTenderCostInstance.destroy();
+
+            chartTenderCostInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: costData.labels,
+                    datasets: [{
+                        label: 'Ambara Teslim Edilecek Maliyeti',
+                        data: costData.tenderCosts,
+                        backgroundColor: costData.labels.map((_, i) => chartColors[i % chartColors.length]),
+                        hoverOffset: 15,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 20,
+                                padding: 15
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: `Ambara Teslim Edilecek Stok Maliyeti Dağılımı (Toplam: ${formatCurrency(costData.totalTenderCost)})`,
+                            font: { size: 16, weight: 'bold' },
+                            color: '#333333'
+                        },
+                        datalabels: {
+                            formatter: (value, context) => {
+                                const total = costData.tenderCosts.reduce((acc, cost) => acc + cost, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                
+                                // Yüzde ve parasal değeri göster
+                                if (percentage > 5) { // Sadece büyük dilimlerde etiketi göster
+                                    return `${percentage}% (${formatCurrency(value).replace('₺', '')})`;
+                                }
+                                return '';
+                            },
+                            color: '#fff',
+                            textShadow: '0 0 5px #000',
+                            font: {
+                                weight: 'bold',
+                                size: 11
+                            }
+                        }
+                    }
                 },
                 plugins: [ChartDataLabels]
             });
