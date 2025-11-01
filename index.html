@@ -24,18 +24,17 @@
   </script>
 
   <style>
-    /* Chart.js'in boyutunu kontrol etmek için temel stil */
-    #chartContainer {
-      height: 300px; /* Grafik alanının yüksekliğini belirle */
-      width: 100%;
+    /* YENİ CSS: İki grafik taşıyıcısına sabit yükseklik verilir */
+    #chartCurrentContainer, #chartAfterTenderContainer {
+      height: 350px; 
     }
+
     /* Tablo genişliklerini ve kaydırma çubuğunu yönetmek için */
     .table-responsive {
         overflow-x: auto;
     }
     
     /* Gerekli olan özel CSS: Satır renklendirme sınıfları */
-    /* !important ile Zebra şerit kuralını ezer */
     .status-success { background-color: transparent; } 
     .status-warning { background-color: #fff8dc !important; } 
     .status-danger { background-color: #f8d7da !important; }  
@@ -47,6 +46,10 @@
     
     /* YAZDIRMA (PDF) AYARLARI */
     @media print {
+        /* Grafikler tam genişlikte olacağı için kenar boşluğunu kaldırıyoruz */
+        .mb-6 { margin-bottom: 0 !important; } 
+        #chartsContainer { padding: 0 !important; }
+        
         /* Kontrol, açıklama ve sayfalama ögelerini gizle */
         .controls, .legend, .pagination { 
             display: none !important;
@@ -100,22 +103,29 @@
     <button onclick="exportPDF()" class="bg-custom-blue hover:bg-custom-darkblue text-white py-2 px-4 rounded-lg shadow-md transition duration-150">PDF Olarak Dışa Aktar</button>
   </div>
 
-  <div id="chartContainer" class="bg-white p-4 rounded-lg shadow-md mb-6 w-3/4 mx-auto">
-    <canvas id="chart"></canvas>
+  <div class="mb-6">
+      <div id="chartsContainer" class="flex gap-4">
+          <div id="chartCurrentContainer" class="bg-white p-4 rounded-lg shadow-md flex-1">
+              <canvas id="chartCurrent"></canvas>
+          </div>
+          <div id="chartAfterTenderContainer" class="bg-white p-4 rounded-lg shadow-md flex-1">
+              <canvas id="chartAfterTender"></canvas>
+          </div>
+      </div>
   </div>
 
   <div class="text-center mb-4 legend flex justify-center gap-4">
     <button onclick="setFilterAndApply('success')" 
-            class="py-1 px-3 rounded-lg bg-gray-100 hover:bg-gray-200 border border-gray-300 hover:shadow-md transition duration-150">Stok Yeterli (> 8 Ay)</button>
+            class="py-1 px-3 rounded-lg bg-gray-100 hover:bg-gray-300 border border-gray-300 hover:shadow-md transition duration-150">Stok Yeterli (> 8 Ay)</button>
 
     <button onclick="setFilterAndApply('warning')" 
-            class="py-1 px-3 rounded-lg bg-status-warning hover:bg-yellow-200 border border-gray-300 hover:shadow-md transition duration-150">Stok Azalıyor (6 - 8 Ay)</button>
+            class="py-1 px-3 rounded-lg bg-status-warning hover:bg-yellow-300 border border-yellow-200 hover:shadow-md transition duration-150">Stok Azalıyor (6 - 8 Ay)</button>
 
     <button onclick="setFilterAndApply('danger')" 
-            class="py-1 px-3 rounded-lg bg-status-danger hover:bg-red-200 border border-gray-300 hover:shadow-md transition duration-150">Kritik Seviye (< 6 Ay)</button>
+            class="py-1 px-3 rounded-lg bg-status-danger hover:bg-red-300 border border-red-200 hover:shadow-md transition duration-150">Kritik Seviye (< 6 Ay)</button>
             
     <button onclick="setFilterAndApply('hepsi')" 
-            class="py-1 px-3 rounded-lg bg-blue-100 hover:bg-blue-200 border border-blue-200 hover:shadow-md transition duration-150">Tüm Durumlar</button>
+            class="py-1 px-3 rounded-lg bg-blue-100 hover:bg-blue-300 border border-blue-300 hover:shadow-md transition duration-150">Tüm Durumlar</button>
   </div>
 
   <div id="tableContainer" class="bg-white p-4 rounded-lg shadow-md table-responsive"></div>
@@ -124,7 +134,8 @@
 
   <script>
     let allRows = [];
-    let chartInstance = null;
+    let chartCurrentInstance = null;
+    let chartTenderInstance = null;
     let currentSort = { column: null, asc: true };
     let currentPage = 1;
 
@@ -150,8 +161,8 @@
           'Mevcut Stok': stok,
           'Yıllık Tüketim': yillik,
           'İhale Miktarı': ihale,
-          'Stok Kaç Ay Yeter': aylik? stok/aylik:0,
-          'Stok İhale Sonrası Kaç Ay Yeter': aylik? (stok+ihale)/aylik:0,
+          'Kaç Ay Yeter': aylik? stok/aylik:0,
+          'İhale Sonrası Kaç Ay Yeter': aylik? (stok+ihale)/aylik:0,
           'Açıklama': (r['Açıklama']||'').trim()
         };
       }).filter(r=>r['Malzeme Adı']);
@@ -165,7 +176,6 @@
         applyFilters(); 
     }
     
-    // YENİ FONKSİYON
     function setFilterAndApply(filterValue) {
       document.getElementById('filterSelect').value = filterValue;
       applyFilters();
@@ -188,7 +198,7 @@
       const end = start + rowsPerPage;
       const pageRows = rows.slice(start, end);
 
-      // Tablo HTML oluşturma - Çizgiler açık mavi, Başlıklar kalın
+      // Tablo HTML oluşturma - Çizgiler açık mavi, Başlıklar kalın (text-sm)
       let html = `<table class="min-w-full divide-y divide-blue-400 border border-blue-400">
         <thead>
           <tr>
@@ -196,8 +206,8 @@
             <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer border-r border-blue-400" onclick="sortTable('Mevcut Stok')">Mevcut Stok ↕</th>
             <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer border-r border-blue-400" onclick="sortTable('Yıllık Tüketim')">Yıllık Tüketim ↕</th>
             <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer border-r border-blue-400" onclick="sortTable('İhale Miktarı')">İhale Miktarı ↕</th>
-            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer border-r border-blue-400" onclick="sortTable('Stok Kaç Ay Yeter')">Stok Kaç Ay Yeter ↕</th>
-            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer border-r border-blue-400" onclick="sortTable('Stok İhale Sonrası Kaç Ay Yeter')">Stok İhale Sonrası Kaç Ay Yeter ↕</th>
+            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer border-r border-blue-400" onclick="sortTable('Kaç Ay Yeter')">Kaç Ay Yeter ↕</th>
+            <th class="px-6 py-3 bg-custom-blue text-center text-sm font-bold text-white uppercase tracking-wider cursor-pointer border-r border-blue-400" onclick="sortTable('İhale Sonrası Kaç Ay Yeter')">İhale Sonrası Kaç Ay Yeter ↕</th>
             <th class="px-6 py-3 bg-custom-blue text-left text-sm font-bold text-white uppercase tracking-wider cursor-pointer" onclick="sortTable('Açıklama')">Açıklama ↕</th>
           </tr>
         </thead>
@@ -205,19 +215,17 @@
 
       pageRows.forEach(r => {
         let cls = 'status-success';
-        // Renklendirme kuralı: İhale sonrası yeterlilik
-        const ay = r['Stok İhale Sonrası Kaç Ay Yeter']; 
+        const ay = r['İhale Sonrası Kaç Ay Yeter']; 
         if (ay < 6) cls = 'status-danger';
         else if(ay < 8) cls = 'status-warning';
 
-        // border-b ve border-r çizgileri açık mavi
         html += `<tr class="${cls} border-b border-blue-400">
           <td class="px-6 py-4 whitespace-normal text-sm text-gray-900 border-r border-blue-400">${r['Malzeme Adı']}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center border-r border-blue-400">${r['Mevcut Stok'].toLocaleString('tr-TR')}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center border-r border-blue-400">${r['Yıllık Tüketim'].toLocaleString('tr-TR')}</td>
           <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center border-r border-blue-400">${r['İhale Miktarı'].toLocaleString('tr-TR')}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center border-r border-blue-400">${r['Stok Kaç Ay Yeter'].toFixed(1).replace('.',',')}</td>
-          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center border-r border-blue-400">${r['Stok İhale Sonrası Kaç Ay Yeter'].toFixed(1).replace('.',',')}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center border-r border-blue-400">${r['Kaç Ay Yeter'].toFixed(1).replace('.',',')}</td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center border-r border-blue-400">${r['İhale Sonrası Kaç Ay Yeter'].toFixed(1).replace('.',',')}</td>
           <td class="px-6 py-4 whitespace-normal text-sm text-gray-900 text-left">${r['Açıklama']}</td>
         </tr>`;
       });
@@ -225,7 +233,7 @@
       html += '</tbody></table>';
       container.innerHTML = html;
 
-      // Sayfalama butonları
+      // ... (Sayfalama kodları aynı kalır) ...
       const paginationDiv = document.getElementById('pagination');
       if (parseInt(document.getElementById('rowsPerPage').value) === 0) {
         paginationDiv.innerHTML = '';
@@ -233,8 +241,6 @@
       }
       
       let paginationHtml = '';
-
-      // Tailwind sınıflarıyla Sayfalama butonları
       const btnBase = 'py-1 px-3 mx-1 rounded-md text-white transition duration-150';
       const btnActive = 'bg-custom-darkblue font-bold';
       const btnInactive = 'bg-custom-blue hover:bg-custom-darkblue';
@@ -265,42 +271,89 @@
       applyFilters(); 
     }
 
-    function renderChart(rows){
-      const ctx=document.getElementById('chart').getContext('2d');
-      const critical = rows.sort((a,b)=>a['Stok Kaç Ay Yeter']-b['Stok Kaç Ay Yeter']).slice(0,5);
-      const labels = critical.map(r=>r['Malzeme Adı']);
-      const values = critical.map(r=>r['Stok Kaç Ay Yeter']*30); // gün olarak
-      if(chartInstance) chartInstance.destroy();
+    // GRAFİK 1: MEVCUT STOK YETERLİLİĞİ
+    function renderCurrentChart(rows){
+      const ctx=document.getElementById('chartCurrent').getContext('2d');
+      const safeRows = [...rows]; 
       
-      chartInstance = new Chart(ctx,{
+      const critical = safeRows.sort((a,b)=>a['Kaç Ay Yeter']-b['Kaç Ay Yeter']).slice(0,5);
+      const labels = critical.map(r=>r['Malzeme Adı']);
+      const values = critical.map(r=>r['Kaç Ay Yeter']*30); 
+
+      if(chartCurrentInstance) chartCurrentInstance.destroy();
+      
+      chartCurrentInstance = new Chart(ctx,{
         type:'bar',
-        data:{ labels, datasets:[{label:'Kalan Stok (Gün)', data:values, backgroundColor:['#ef4444','#f97316','#facc15','#22c55e','#3b82f6']}]},
+        data:{ labels, datasets:[{
+            label:'Kalan Stok (Gün)', 
+            data:values, 
+            backgroundColor:['#ef4444','#f97316','#facc15','#22c55e','#3b82f6'] 
+        }]},
         options:{
           indexAxis:'y', 
           responsive:true,               
           maintainAspectRatio: false,     
           
           layout: {
-            padding: {
-              left: 100, // Sol boşluk (etiketler için)
-              right: 120 // Sağ boşluk (Taşmayı önler)
-            }
+            // SOL BOŞLUK AZALTILDI: 100 -> 20 (Responsive tasarım için)
+            padding: { left: 20, right: 80 } 
           },
           
           plugins:{
             legend:{display:false},
-            
-            // Başlık (Title)
             title: {
               display: true,
-              text: 'Kritik Seviyedeki İlk 5 Malzeme Stok Yeterliliği', 
-              font: {
-                size: 16,
-                weight: 'bold'
-              },
+              text: 'Kritik Seviyedeki İlk 5 Malzeme (Mevcut Stok Yeterliliği)', 
+              font: { size: 16, weight: 'bold' },
               color: '#333333' 
             },
-            
+            datalabels:{ anchor:'end', align:'right', formatter: value=>Math.round(value)+' gün' }
+          },
+          scales:{x:{beginAtZero:true}}
+        },
+        plugins: [ChartDataLabels]
+      });
+    }
+
+    // GRAFİK 2: İHALE SONRASI STOK YETERLİLİĞİ
+    function renderTenderChart(rows){
+      const ctx=document.getElementById('chartAfterTender').getContext('2d');
+      const safeRows = [...rows]; 
+      
+      const critical = safeRows.sort((a,b)=>a['İhale Sonrası Kaç Ay Yeter']-b['İhale Sonrası Kaç Ay Yeter']).slice(0,5);
+      const labels = critical.map(r=>r['Malzeme Adı']);
+      const values = critical.map(r=>r['İhale Sonrası Kaç Ay Yeter']*30); 
+
+      if(chartTenderInstance) chartTenderInstance.destroy();
+      
+      chartTenderInstance = new Chart(ctx,{
+        type:'bar',
+        data:{ 
+          labels, 
+          datasets:[{
+            label:'Kalan Stok (Gün)', 
+            data:values, 
+            backgroundColor:['#ef4444','#f97316','#facc15','#22c55e','#3b82f6'] 
+          }]
+        },
+        options:{
+          indexAxis:'y', 
+          responsive:true,               
+          maintainAspectRatio: false,     
+          
+          layout: {
+            // SOL BOŞLUK AZALTILDI: 100 -> 20 (Responsive tasarım için)
+            padding: { left: 20, right: 80 } 
+          },
+          
+          plugins:{
+            legend:{display:false},
+            title: {
+              display: true,
+              text: 'Kritik Seviyedeki İlk 5 Malzeme (İhale Sonrası Yeterlilik)', 
+              font: { size: 16, weight: 'bold' },
+              color: '#333333' 
+            },
             datalabels:{ anchor:'end', align:'right', formatter: value=>Math.round(value)+' gün' }
           },
           scales:{x:{beginAtZero:true}}
@@ -321,15 +374,13 @@
 
     function applyFilters(){
       const search=document.getElementById('searchInput').value.toLowerCase();
-      // Filtre değeri artık hem SELECT kutusundan hem de butonlardan gelebilir
       const filter=document.getElementById('filterSelect').value;
       
       let filtered=allRows.filter(r=>r['Malzeme Adı'].toLowerCase().includes(search));
       
       if(filter!=='hepsi'){
         filtered=filtered.filter(r=>{
-          // Filtreleme: İhale Sonrası Yeterlilik sütununa göre yapıldı
-          const ay=r['Stok İhale Sonrası Kaç Ay Yeter']; 
+          const ay=r['İhale Sonrası Kaç Ay Yeter']; 
           if(filter==='success') return ay>=8;
           if(filter==='warning') return ay>=6 && ay<8;
           if(filter==='danger') return ay<6;
@@ -337,7 +388,8 @@
       }
       
       renderTable(filtered);
-      renderChart(filtered);
+      renderCurrentChart(filtered); 
+      renderTenderChart(filtered); 
     }
 
     function exportPDF(){ window.print(); }
